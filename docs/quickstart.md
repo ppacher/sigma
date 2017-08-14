@@ -14,7 +14,7 @@ cd ~/sigma
 Download the latest release binary from Github's release page [here]() und unpack it within the working directory:
 
 ```bash
-wget https://github.com/iot-cloud/sigma/releases/<release-name>.tar.gz
+wget https://github.com/homebot/sigma/releases/<release-name>.tar.gz
 tar xfz ./<release-name>.tar.gz
 chmod +x ./sigma
 ```
@@ -58,7 +58,7 @@ content:
 
 `handler.js`
 ```javascript
-import * as iotc from 'iot-cloud-sdk';
+import * as iotc from 'homebot-sdk';
 
 export.handler = function(topic, event) {
     //
