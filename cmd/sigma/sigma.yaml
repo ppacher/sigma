@@ -1,0 +1,13 @@
+server:
+  listen: localhost:50051
+nodeServer:
+  listen: localhost:50052
+  advertise: 127.0.0.1:50052
+launcher:
+  docker: null
+  process:
+    types:
+      js:
+        command: 
+            - /tmp/side
+            - -binary=/usr/bin/cat

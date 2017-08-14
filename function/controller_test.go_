@@ -1,0 +1,535 @@
+package sigma
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/iot-cloud/core/urn"
+	"github.com/iot-cloud/sigma/autoscale"
+	"github.com/iot-cloud/sigma/launcher"
+	"github.com/iot-cloud/sigma/node"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+type eventMock struct {
+	mock.Mock
+}
+
+func (e *eventMock) Type() string {
+	return e.Called().String(0)
+}
+
+type nodeControllerMock struct {
+	mock.Mock
+}
+
+func (c *nodeControllerMock) State() node.State {
+	return c.Called().Get(0).(node.State)
+}
+
+func (c *nodeControllerMock) URN() urn.URN {
+	return urn.SigmaFunctionNodeResource.BuildURN("", "", c.Called().String(0))
+}
+
+func (c *nodeControllerMock) Dispatch(evt interface{}) ([]byte, error) {
+	args := c.Called(evt)
+	return args.Get(0).([]byte), args.Error(1)
+}
+
+func (c *nodeControllerMock) Close() error {
+	return c.Called().Error(0)
+}
+
+type autoScalerMock struct{ mock.Mock }
+
+func (a *autoScalerMock) Check(metrics map[string]float64, states map[urn.URN]node.State) (string, autoscale.ScaleDirection, int) {
+	args := a.Called(metrics)
+	return args.String(0), args.Get(1).(autoscale.ScaleDirection), args.Int(2)
+}
+
+func (a *autoScalerMock) AttachPolicy(name string, policy autoscale.Policy) error {
+	return a.Called(name, policy).Error(0)
+}
+
+func (a *autoScalerMock) DetachPolicy(name string) error {
+	return a.Called(name).Error(0)
+}
+
+type launcherMock struct{ mock.Mock }
+
+func (l *launcherMock) Deploy(ctx context.Context, nodeType string) (launcher.Deployment, error) {
+	args := l.Called(nodeType)
+	return args.Get(0).(launcher.Deployment), args.Error(1)
+}
+
+type deploymentMock struct{ mock.Mock }
+
+func (d *deploymentMock) Wait() (node.Node, error) {
+	args := d.Called()
+	return args.Get(0).(node.Node), args.Error(1)
+}
+
+func (d *deploymentMock) Progress() chan string {
+	return d.Called().Get(0).(chan string)
+}
+
+type nodeMock struct{ mock.Mock }
+
+func (n *nodeMock) Close() error {
+	return n.Called().Error(0)
+}
+
+func (n *nodeMock) Stats() node.Stats {
+	return n.Called().Get(0).(node.Stats)
+}
+
+func newFunctionControllerWithFactory(spec FunctionSpec, factory node.ControllerFactory) *controller {
+	res, err := NewFunctionController(spec, WithNodeFactory(factory))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return res.(*controller)
+}
+
+func TestControllerRegistry_AddNode_FactoryFailure(t *testing.T) {
+	assert := assert.New(t)
+
+	factory := func(_ string, n node.Node, _ *urn.ResourceContext) (node.Controller, error) {
+		return nil, errors.New("simulated error")
+	}
+
+	reg := newFunctionControllerWithFactory(FunctionSpec{}, factory)
+	if !assert.NotNil(reg) {
+		return
+	}
+
+	assert.Empty(reg.controllers)
+	err := reg.AddNode(nil)
+	assert.Error(err)
+}
+
+func TestControllerRegistry_AddNode(t *testing.T) {
+	assert := assert.New(t)
+
+	ctrl := new(nodeControllerMock)
+	ctrl.On("URN").Return("dummy-id")
+
+	factory := func(_ string, n node.Node, _ *urn.ResourceContext) (node.Controller, error) {
+		return ctrl, nil
+	}
+
+	reg := newFunctionControllerWithFactory(FunctionSpec{}, factory)
+	if !assert.NotNil(reg) {
+		return
+	}
+
+	assert.Empty(reg.controllers)
+	err := reg.AddNode(nil)
+	assert.NoError(err)
+	assert.NotEmpty(reg.controllers)
+
+	ctrl.AssertExpectations(t)
+}
+
+func TestControllerRegistry_DestroyNode(t *testing.T) {
+	assert := assert.New(t)
+
+	ctrl := new(nodeControllerMock)
+	ctrl.On("Close").Return(errors.New("dummy error"))
+
+	reg := newFunctionControllerWithFactory(FunctionSpec{}, nil)
+	if !assert.NotNil(reg) {
+		return
+	}
+
+	assert.Empty(reg.controllers)
+	reg.controllers["dummy"] = ctrl
+
+	assert.EqualError(reg.DestroyNode("dummy"), "dummy error")
+	assert.Empty(reg.controllers)
+
+	ctrl.AssertExpectations(t)
+}
+
+func TestControllerRegistry_Nodes(t *testing.T) {
+	assert := assert.New(t)
+
+	ctrl := new(nodeControllerMock)
+	ctrl.On("State").Return(node.StateActive)
+
+	ctrl2 := new(nodeControllerMock)
+	ctrl2.On("State").Return(node.StateDisabled)
+
+	reg := newFunctionControllerWithFactory(FunctionSpec{}, nil)
+	if !assert.NotNil(reg) {
+		return
+	}
+
+	assert.Empty(reg.controllers)
+	reg.controllers["dummy"] = ctrl
+	reg.controllers["dummy2"] = ctrl2
+
+	controllers := reg.Nodes()
+
+	assert.Equal(controllers["dummy"], node.StateActive)
+	assert.Equal(controllers["dummy2"], node.StateDisabled)
+
+	ctrl.AssertExpectations(t)
+	ctrl2.AssertExpectations(t)
+}
+
+func TestControllerRegistry_Dispatch(t *testing.T) {
+	assert := assert.New(t)
+
+	ctrl := new(nodeControllerMock)
+	ctrl.On("State").Return(node.StateRunning)
+
+	ctrl2 := new(nodeControllerMock)
+	ctrl2.On("State").Return(node.StateDisabled)
+
+	ctrl3 := new(nodeControllerMock)
+	ctrl3.On("State").Return(node.StateActive)
+
+	reg := newFunctionControllerWithFactory(FunctionSpec{}, nil)
+	if !assert.NotNil(reg) {
+		return
+	}
+
+	assert.Empty(reg.controllers)
+	reg.controllers["dummy"] = ctrl
+	reg.controllers["dummy2"] = ctrl2
+	reg.controllers["dummy3"] = ctrl3
+
+	e := new(eventMock)
+	e.On("Type").Return("dummy-event")
+
+	ctrl3.On("Dispatch", e).Return([]byte("result-controller-3"), errors.New("dummy error"))
+
+	id, res, err := reg.Dispatch(e)
+	assert.Equal(urn.URN("dummy3"), id)
+	assert.Equal("result-controller-3", string(res))
+	assert.EqualError(err, "dummy error")
+
+	ctrl3.AssertExpectations(t)
+}
+
+func TestControllerRegistry_Dispatch_NoNodes(t *testing.T) {
+	assert := assert.New(t)
+
+	ctrl := new(nodeControllerMock)
+	ctrl.On("State").Return(node.StateRunning)
+
+	ctrl2 := new(nodeControllerMock)
+	ctrl2.On("State").Return(node.StateDisabled)
+
+	reg := newFunctionControllerWithFactory(FunctionSpec{}, nil)
+	if !assert.NotNil(reg) {
+		return
+	}
+
+	assert.Empty(reg.controllers)
+	reg.controllers["dummy"] = ctrl
+	reg.controllers["dummy2"] = ctrl2
+
+	e := new(eventMock)
+	e.On("Type").Return("dummy-event")
+
+	id, res, err := reg.Dispatch(e)
+	assert.Equal(urn.URN(""), id)
+	assert.Nil(res)
+	assert.EqualError(err, ErrNoSelectableNodes.Error())
+
+	ctrl.AssertExpectations(t)
+	ctrl2.AssertExpectations(t)
+}
+
+func TestControllerRegistry_DestroyAll(t *testing.T) {
+	assert := assert.New(t)
+
+	ctrl := new(nodeControllerMock)
+	ctrl.On("Close").Return(nil)
+	ctrl1 := new(nodeControllerMock)
+	ctrl1.On("Close").Return(errors.New("dummy error"))
+
+	reg := newFunctionControllerWithFactory(FunctionSpec{}, nil)
+	if !assert.NotNil(reg) {
+		return
+	}
+
+	assert.Empty(reg.controllers)
+	reg.controllers["dummy"] = ctrl
+	reg.controllers["dummy1"] = ctrl1
+
+	err := reg.DestroyAll()
+	assert.EqualError(err, "dummy error")
+	assert.Empty(reg.controllers)
+
+	ctrl.AssertExpectations(t)
+}
+
+func TestControllRegistry_ControlLoop_Hooks(t *testing.T) {
+	assert := assert.New(t)
+
+	reg, _ := NewFunctionController(FunctionSpec{}, nil, WithControlLoopInterval(100*time.Millisecond))
+	if !assert.NotNil(reg) {
+		return
+	}
+
+	ch := make(chan struct{}, 100)
+	hook := func(c FunctionController) {
+		ch <- struct{}{}
+	}
+
+	assert.NoError(reg.AttachControlLoopHook(hook))
+	assert.Error(reg.AttachControlLoopHook(hook))
+
+	assert.NoError(reg.Start())
+	assert.Error(reg.Start())
+
+	select {
+	case <-ch:
+	case <-time.After(time.Millisecond * 500):
+		t.FailNow()
+	}
+
+	assert.NoError(reg.Stop())
+	assert.Error(reg.Stop())
+
+	assert.NoError(reg.DetachControlLoopHook(hook))
+	assert.Error(reg.DetachControlLoopHook(hook))
+}
+
+func TestControllerRegistry_ControlLoopAutoScaler_ScaleUp(t *testing.T) {
+	assert := assert.New(t)
+
+	n1 := new(nodeMock)
+	n2 := new(nodeMock)
+
+	d1 := new(deploymentMock)
+	d2 := new(deploymentMock)
+
+	d1.On("Wait").Return(n1, nil)
+	d2.On("Wait").Return(n2, nil)
+
+	launcher := new(launcherMock)
+	launcher.On("Deploy", "dummy").Return(d1, nil).Once()
+	launcher.On("Deploy", "dummy").Return(d2, nil).Once()
+
+	scaler := new(autoScalerMock)
+	scaler.On("Check", map[string]float64{}).Return("foobar", autoscale.ScaleUp, 2)
+
+	ch := make(chan struct{})
+
+	hook := func(c FunctionController) {
+		ch <- struct{}{}
+	}
+
+	reg, err := NewFunctionController(FunctionSpec{Type: "dummy"}, WithNodeLauncher(launcher), WithAutoScaler(scaler), WithControlLoopInterval(time.Millisecond*10))
+	if !assert.NoError(err) {
+		return
+	}
+
+	assert.NoError(reg.AttachControlLoopHook(hook))
+
+	assert.NoError(reg.Start())
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.FailNow()
+	}
+
+	assert.NoError(reg.Stop())
+
+	assert.Len(reg.Nodes(), 2)
+
+	n1.AssertExpectations(t)
+	n2.AssertExpectations(t)
+	d1.AssertExpectations(t)
+	d2.AssertExpectations(t)
+	launcher.AssertExpectations(t)
+	scaler.AssertExpectations(t)
+}
+
+func TestControllerRegistry_ControlLoopAutoScaler_ScaleUp_DeployFailes(t *testing.T) {
+	assert := assert.New(t)
+
+	n1 := new(nodeMock)
+	n2 := new(nodeMock)
+
+	d1 := new(deploymentMock)
+	d2 := new(deploymentMock)
+
+	d1.On("Wait").Return(n1, nil)
+
+	l := new(launcherMock)
+	l.On("Deploy", "dummy").Return(d1, nil).Once()
+	l.On("Deploy", "dummy").Return(d2, errors.New("dummy error")).Once()
+
+	scaler := new(autoScalerMock)
+	scaler.On("Check", map[string]float64{}).Return("foobar", autoscale.ScaleUp, 2)
+
+	ch := make(chan struct{})
+
+	hook := func(c FunctionController) {
+		ch <- struct{}{}
+	}
+
+	reg, err := NewFunctionController(FunctionSpec{Type: "dummy"}, WithNodeLauncher(l), WithAutoScaler(scaler), WithControlLoopInterval(time.Millisecond*10))
+	if !assert.NoError(err) {
+		return
+	}
+
+	assert.NoError(reg.AttachControlLoopHook(hook))
+
+	assert.NoError(reg.Start())
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.FailNow()
+	}
+
+	assert.NoError(reg.Stop())
+
+	assert.Len(reg.Nodes(), 1)
+
+	n1.AssertExpectations(t)
+	n2.AssertExpectations(t)
+	d1.AssertExpectations(t)
+	d2.AssertExpectations(t)
+	l.AssertExpectations(t)
+	scaler.AssertExpectations(t)
+}
+
+func TestControllerRegistry_ControlLoopAutoScaler_ScaleUp_WaitFails(t *testing.T) {
+	assert := assert.New(t)
+
+	n1 := new(nodeMock)
+	n2 := new(nodeMock)
+
+	d1 := new(deploymentMock)
+	d2 := new(deploymentMock)
+
+	d1.On("Wait").Return(n1, nil)
+	d2.On("Wait").Return(n2, errors.New("dummy error"))
+
+	l := new(launcherMock)
+	l.On("Deploy", "dummy").Return(d1, nil).Once()
+	l.On("Deploy", "dummy").Return(d2, nil).Once()
+
+	scaler := new(autoScalerMock)
+	scaler.On("Check", map[string]float64{}).Return("foobar", autoscale.ScaleUp, 2)
+
+	ch := make(chan struct{})
+
+	hook := func(c FunctionController) {
+		ch <- struct{}{}
+	}
+
+	reg, err := NewFunctionController(FunctionSpec{Type: "dummy"}, WithNodeLauncher(l), WithAutoScaler(scaler), WithControlLoopInterval(time.Millisecond*10))
+	if !assert.NoError(err) {
+		return
+	}
+
+	assert.NoError(reg.AttachControlLoopHook(hook))
+
+	assert.NoError(reg.Start())
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.FailNow()
+	}
+
+	assert.NoError(reg.Stop())
+
+	assert.Len(reg.Nodes(), 1)
+
+	n1.AssertExpectations(t)
+	n2.AssertExpectations(t)
+	d1.AssertExpectations(t)
+	d2.AssertExpectations(t)
+	l.AssertExpectations(t)
+	scaler.AssertExpectations(t)
+}
+
+func TestControllerRegistry_ControlLoopAutoScaler_ScaleDown(t *testing.T) {
+	assert := assert.New(t)
+
+	n1 := new(nodeMock)
+	n2 := new(nodeMock)
+
+	c1 := new(nodeControllerMock)
+	c2 := new(nodeControllerMock)
+
+	c1.On("Close").Return(nil)
+	c2.On("Close").Return(nil)
+
+	c1.On("URN").Return("foobar")
+	c2.On("URN").Return("barfoo")
+
+	c1.On("State").Return(node.StateActive).Once()
+	c1.On("State").Return(node.StateActive)
+	c2.On("State").Return(node.StateRunning).Once()
+	c2.On("State").Return(node.StateActive)
+
+	factory := func(_ string, n node.Node, _ *urn.ResourceContext) (node.Controller, error) {
+		node := n.(*nodeMock)
+
+		if node == n1 {
+			return c1, nil
+		}
+
+		if node == n2 {
+			return c2, nil
+		}
+
+		return nil, fmt.Errorf("wtf?")
+	}
+
+	scaler := new(autoScalerMock)
+	scaler.On("Check", map[string]float64{}).Return("foobar", autoscale.ScaleDown, 2)
+
+	ch := make(chan struct{}, 100)
+
+	hook := func(c FunctionController) {
+		ch <- struct{}{}
+	}
+
+	reg, err := NewFunctionController(FunctionSpec{Type: "dummy"}, WithNodeFactory(factory), WithNodeLauncher(new(launcherMock)), WithAutoScaler(scaler), WithControlLoopInterval(time.Millisecond*10))
+	if !assert.NoError(err) {
+		return
+	}
+
+	assert.NoError(reg.AddNode(n1))
+	assert.NoError(reg.AddNode(n2))
+
+	assert.Len(reg.Nodes(), 2)
+
+	assert.NoError(reg.AttachControlLoopHook(hook))
+
+	assert.NoError(reg.Start())
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second * 10000):
+		t.FailNow()
+	}
+
+	assert.NoError(reg.Stop())
+
+	assert.Len(reg.Nodes(), 0)
+
+	n1.AssertExpectations(t)
+	c1.AssertExpectations(t)
+	n2.AssertExpectations(t)
+	c2.AssertExpectations(t)
+	scaler.AssertExpectations(t)
+}
