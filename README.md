@@ -27,6 +27,8 @@ See [homebot.github.io/sigma](https://homebot.github.io/sigma) for documentation
 - [ ] Test cases
 - [ ] Basic load balancing (round-robin)
 - [ ] Simple command-line client
+- [ ] Launcher: Docker
+- [X] Launcher: Process (launching functions as native processes)
 - [X] Support for auto-scaling policies
 - [X] Simple, generic metric interface
 - [X] Plugable trigger support (compile time)
