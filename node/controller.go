@@ -2,6 +2,7 @@ package node
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -192,7 +193,7 @@ func (ctrl *controller) Dispatch(ctx context.Context, event *sigma.DispatchEvent
 	case *sigma.ExecutionResult_Result:
 		return v.Result, nil
 	default:
-		return nil, errors.New("unexpected result")
+		return nil, fmt.Errorf("unexpected result: %#v", v)
 	}
 }
 

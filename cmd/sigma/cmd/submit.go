@@ -44,7 +44,7 @@ type FunctionSpec struct {
 
 		// File is the path to the function handler file to transmit during "submit"
 		File string `json:"file" yaml:"file"`
-	}
+	} `json:"content" yaml:"content"`
 }
 
 var (
