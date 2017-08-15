@@ -51,6 +51,7 @@ var (
 	intParams    []string
 	stringParams []string
 	boolParams   []string
+	idOverride   string
 )
 
 // submitCmd represents the submit command
@@ -78,6 +79,10 @@ var submitCmd = &cobra.Command{
 		var spec FunctionSpec
 		if err := yaml.Unmarshal(content, &spec); err != nil {
 			log.Fatal(err)
+		}
+
+		if idOverride != "" {
+			spec.ID = idOverride
 		}
 
 		if err := parseParameters(spec.Parameteres); err != nil {
@@ -126,6 +131,7 @@ func init() {
 	submitCmd.Flags().StringSliceVarP(&intParams, "param-int", "i", nil, "Additional parameters in format key=value")
 	submitCmd.Flags().StringSliceVarP(&stringParams, "param-str", "s", nil, "Additional parameters in format key=value")
 	submitCmd.Flags().StringSliceVarP(&boolParams, "param-bool", "b", nil, "Additional parameters in format key=value")
+	submitCmd.Flags().StringVarP(&idOverride, "name", "n", "", "Name for the function to submit. Overrides values from the spec")
 }
 
 func parseParameters(m utils.ValueMap) error {
