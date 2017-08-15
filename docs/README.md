@@ -20,9 +20,14 @@ The following is a list of implemented and planned features for `Sigma v1.0`.
 - **Extensible and Customizable**
 - **Language agnostic**
 - **Policy based auto-scaling**
-- **Load Balancing between function nodes**
-- **Support for multiple backends**: Kubernetes, Docker, Process
-- **Plugable Trigger system**
-- **Event notifications** to *AQMP*, *MQTT*, *nats.io*
+- Load Balancing between function nodes
+- **Support for multiple backends**: Kubernetes, Docker, **Process**
+- Plugable Trigger system (**currently only during compile time**)
+- Event notifications to *AQMP*, *MQTT*, *nats.io*
 - **gRPC server interface**
 - **Developed under an Open-Source license**
+
+## Supported languages
+
+ - [**JavaScript**](https://github.com/homebot/sigma-nodejs) with `sigma-nodejs`
+ - *More to come*

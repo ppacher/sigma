@@ -1,34 +1,41 @@
 # Quick Start
 
-This guide will get you started using Sigma. We will download the prebuilt release binary and use Docker for scheduling function nodes. The quick-start guide will setup the `sigma/nodejs` docker container for executing JavaScript based functions. 
+This guide will get you started using Sigma. We will download the prebuilt release binary and use Docker for scheduling function nodes. The quick-start guide will setup [`sigma-nodejs`](https://github.com/homebot/sigma-nodejs) using the process launcher for executing JavaScript based functions. 
 
-## Installation
+## Installation and Configuration
 
-First we need to setup a working directory for our Sigma server:
+Since Sigma is under active development and as not been released yet, there are no prebuilt binaries available. In order to install Sigma, please follow [Installation from Source](installation.md#installation-from-source).
+
+In order to support functions implemented in JavaScript, we need to configure the `sigma-nodejs` execution node. Make sure to have `NodeJS` and `npm` installed before proceeding.
+
+> More detailed instructions are available [here](https://github.com/homebot/sigma-nodejs)
 
 ```bash
-mkdir ~/sigma
-cd ~/sigma
+# Clone the repository and enter it's root directory
+git clone https://github.com/homebot/sigma-nodejs ~/sigma-nodejs
+cd ~/sigma-nodejs
+git submodule update --init --recursive # Checkout protobuf definitions
+
+# Install NodeJS dependencies and build `sigma-nodejs`
+npm install  && npm run build
 ```
 
-Download the latest release binary from Github's release page [here]() und unpack it within the working directory:
+The steps above will download and compile the `sigma-nodejs` executor into the `lib/` folder. Now we need to configure `sigma.yaml` for the new execution type:
 
-```bash
-wget https://github.com/homebot/sigma/releases/<release-name>.tar.gz
-tar xfz ./<release-name>.tar.gz
-chmod +x ./sigma
+```yaml
+launcher:
+  process:
+    types:
+      js:
+        command:
+          - /usr/bin/node
+          - ~/sigma-nodejs/lib/main.js
 ```
 
-Next, we need to create the sigma configuration file `sigma.yaml` by running the following command:
+Finally, start up the sigma server:
 
 ```bash
-./sigma server init --launcher=docker --add-type=js
-```
-
-Now that we have Sigma installed and configured, it's time to fire-up the server:
-
-```bash
-./sigma server --log-events
+./sigma server
 ```
 
 ## Your first Function
