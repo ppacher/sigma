@@ -15,7 +15,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -87,14 +86,6 @@ var submitCmd = &cobra.Command{
 
 		if spec.FunctionSpec.Content == "" {
 			log.Fatal("function does not have any content")
-		}
-
-		if blob, err := json.MarshalIndent(spec, "", "  "); err == nil {
-			fmt.Printf("%s\n", string(blob))
-		}
-
-		if blob, err := json.MarshalIndent(spec.FunctionSpec.ToProtobuf(), "", "  "); err == nil {
-			fmt.Printf("%s\n", string(blob))
 		}
 
 		cli, conn, err := getClient()
