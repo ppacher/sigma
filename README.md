@@ -13,6 +13,7 @@ See [homebot.github.io/sigma](https://homebot.github.io/sigma) for documentation
 - [ ] Function versioning
 - [ ] Rolling updates
 - [ ] Live-reload configuration
+- [ ] OpenTracing
 
 **v0.2**
 
@@ -20,6 +21,7 @@ See [homebot.github.io/sigma](https://homebot.github.io/sigma) for documentation
 - [ ] Trigger plugins based on [hashicorp/go-plugin](https://github.com/hashicorp/go-plugin)
 - [ ] Event dispatcher for MQTT
 - [ ] Event dispatcher for AMQP
+- [ ] Prometheus metrics
 
 
 **v0.1** *expected 2017-09*
