@@ -1,6 +1,7 @@
 package sigma
 
 import (
+	"github.com/homebot/core/utils"
 	"github.com/homebot/protobuf/pkg/api/sigma"
 )
 
@@ -53,8 +54,13 @@ type FunctionSpec struct {
 
 	// Triggers holds trigger specifications for the function
 	Triggers []TriggerSpec `json:"triggers" yaml:"triggers"`
+
+	// Parameters may hold optional parameters for the function
+	Parameteres utils.ValueMap `json:"parameters" yaml:"parameters"`
 }
 
+// TriggersToProtobuf converts a slice or array of triggers to their
+// protocol buffer representation
 func TriggersToProtobuf(t []TriggerSpec) []*sigma.TriggerSpec {
 	var res []*sigma.TriggerSpec
 
@@ -65,6 +71,8 @@ func TriggersToProtobuf(t []TriggerSpec) []*sigma.TriggerSpec {
 	return res
 }
 
+// TriggersFromProtobuf converts a slice or array of protocol buffer
+// triggers to a slice of TriggerSpec
 func TriggersFromProtobuf(t []*sigma.TriggerSpec) []TriggerSpec {
 	var res []TriggerSpec
 
@@ -104,11 +112,12 @@ func ProtobufToPolicies(in []*sigma.Policy) map[string]map[string]string {
 // ToProtobuf converts the function spec to it's protocol buffer representation
 func (spec FunctionSpec) ToProtobuf() *sigma.FunctionSpec {
 	return &sigma.FunctionSpec{
-		Id:       spec.ID,
-		Type:     spec.Type,
-		Policies: PoliciesToProtobuf(spec.Policies),
-		Content:  []byte(spec.Content),
-		Triggers: TriggersToProtobuf(spec.Triggers),
+		Id:         spec.ID,
+		Type:       spec.Type,
+		Policies:   PoliciesToProtobuf(spec.Policies),
+		Content:    []byte(spec.Content),
+		Triggers:   TriggersToProtobuf(spec.Triggers),
+		Parameters: spec.Parameteres.ToProto(),
 	}
 }
 
@@ -116,10 +125,11 @@ func (spec FunctionSpec) ToProtobuf() *sigma.FunctionSpec {
 // representation
 func SpecFromProto(in *sigma.FunctionSpec) FunctionSpec {
 	return FunctionSpec{
-		ID:       in.GetId(),
-		Type:     in.GetType(),
-		Policies: ProtobufToPolicies(in.GetPolicies()),
-		Content:  string(in.GetContent()),
-		Triggers: TriggersFromProtobuf(in.GetTriggers()),
+		ID:          in.GetId(),
+		Type:        in.GetType(),
+		Policies:    ProtobufToPolicies(in.GetPolicies()),
+		Content:     string(in.GetContent()),
+		Triggers:    TriggersFromProtobuf(in.GetTriggers()),
+		Parameteres: utils.ValueMapFrom(in.GetParameters()),
 	}
 }

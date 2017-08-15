@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -13,17 +14,17 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/homebot/core/urn"
+	"github.com/homebot/core/utils"
 	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
-	"github.com/homebot/sigma"
 	"github.com/homebot/sigma/launcher"
 )
 
 var binary = flag.String("binary", "", "The binary to execute")
 
-// Registration is sent on the targets stdin as soon as the registration
-// is successfull
-type Registration struct {
-	Spec sigma.FunctionSpec `json:"spec"`
+type InitMessage struct {
+	URN        string         `json:"urn" yaml:"urn"`
+	Parameters utils.ValueMap `json:"parameters" yaml:"parameters"`
+	Content    []byte         `json:"content" yaml:"content"`
 }
 
 func main() {
@@ -104,7 +105,19 @@ func main() {
 		return
 	}
 
-	stdin.Write([]byte(urn.FromProtobuf(res.GetUrn()).String()))
+	init := InitMessage{
+		URN:        urn.FromProtobuf(res.GetUrn()).String(),
+		Content:    res.GetContent(),
+		Parameters: utils.ValueMapFrom(res.GetParameters()),
+	}
+
+	blob, err := json.Marshal(init)
+	if err != nil {
+		os.Stderr.Write([]byte(err.Error()))
+		return
+	}
+
+	stdin.Write(blob)
 
 	stream, err := cli.Subscribe(callCtx)
 	if err != nil {

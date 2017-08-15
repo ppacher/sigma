@@ -8,16 +8,17 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/homebot/core/urn"
-	sigma "github.com/homebot/protobuf/pkg/api/sigma"
+	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	"github.com/homebot/sigma"
 )
 
 // Conn is the connection to a node instance
 type Conn interface {
 	// Send sends a dispatch event
-	Send(*sigma.DispatchEvent) error
+	Send(*sigma_api.DispatchEvent) error
 
 	// Receive receives an execution result
-	Receive(context.Context) (*sigma.ExecutionResult, error)
+	Receive(context.Context) (*sigma_api.ExecutionResult, error)
 
 	// Connected returns true if the node is currently connected
 	Connected() bool
@@ -31,13 +32,14 @@ type Conn interface {
 }
 
 type nodeChannel struct {
-	request  chan *sigma.DispatchEvent
-	response chan *sigma.ExecutionResult
+	request  chan *sigma_api.DispatchEvent
+	response chan *sigma_api.ExecutionResult
 }
 
 type nodeConn struct {
 	secret string
 	URN    urn.URN
+	spec   sigma.FunctionSpec
 
 	closed chan struct{}
 
@@ -46,11 +48,12 @@ type nodeConn struct {
 	registered bool
 }
 
-func newNodeConn(urn urn.URN, secret string) *nodeConn {
+func newNodeConn(urn urn.URN, secret string, spec sigma.FunctionSpec) *nodeConn {
 	return &nodeConn{
 		secret: secret,
 		URN:    urn,
 		closed: make(chan struct{}),
+		spec:   spec,
 	}
 }
 
@@ -76,7 +79,7 @@ func (n *nodeConn) Close() error {
 	return nil
 }
 
-func (n *nodeConn) Send(in *sigma.DispatchEvent) error {
+func (n *nodeConn) Send(in *sigma_api.DispatchEvent) error {
 	req, _, err := n.getChannels()
 	if err != nil {
 		return err
@@ -90,7 +93,7 @@ func (n *nodeConn) Send(in *sigma.DispatchEvent) error {
 	return nil
 }
 
-func (n *nodeConn) Receive(ctx context.Context) (*sigma.ExecutionResult, error) {
+func (n *nodeConn) Receive(ctx context.Context) (*sigma_api.ExecutionResult, error) {
 	_, res, err := n.getChannels()
 	if err != nil {
 		return nil, err
@@ -120,7 +123,7 @@ func (n *nodeConn) setRegistered(b bool) {
 	n.registered = b
 }
 
-func (n *nodeConn) getChannels() (chan *sigma.DispatchEvent, chan *sigma.ExecutionResult, error) {
+func (n *nodeConn) getChannels() (chan *sigma_api.DispatchEvent, chan *sigma_api.ExecutionResult, error) {
 	n.rw.Lock()
 	defer n.rw.Unlock()
 

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/homebot/core/urn"
+	"github.com/homebot/sigma"
 	"github.com/homebot/sigma/launcher"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/net/context"
@@ -14,7 +15,7 @@ type Deployer interface {
 
 	// Deploy deploys a new node and returns a controller
 	// for managing/communication with the node
-	Deploy(context.Context, urn.URN, string) (Controller, error)
+	Deploy(context.Context, urn.URN, sigma.FunctionSpec) (Controller, error)
 }
 
 type deployer struct {
@@ -43,18 +44,18 @@ func NewDeployer(svc NodeServer, launcher launcher.Launcher, handlerAddress stri
 }
 
 // Deploy deploys a new node
-func (d *deployer) Deploy(ctx context.Context, u urn.URN, instanceType string) (Controller, error) {
+func (d *deployer) Deploy(ctx context.Context, u urn.URN, spec sigma.FunctionSpec) (Controller, error) {
 	// First we need to setup the NodeServer to accept the new node as soon
 	// as it is ready
 	secret := uuid.NewV4().String()
 
-	conn, err := d.service.Prepare(u, secret)
+	conn, err := d.service.Prepare(u, secret, spec)
 	if err != nil {
 		return nil, err
 	}
 
 	// Next, instruct the launcher to deploy a new instance
-	instance, err := d.launcher.Create(ctx, instanceType, launcher.Config{
+	instance, err := d.launcher.Create(ctx, spec.Type, launcher.Config{
 		URN:     u,
 		Secret:  secret,
 		Address: d.advertiseAddress,

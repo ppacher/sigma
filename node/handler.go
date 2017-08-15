@@ -8,14 +8,15 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/homebot/core/urn"
-	sigma "github.com/homebot/protobuf/pkg/api/sigma"
+	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	"github.com/homebot/sigma"
 	"golang.org/x/net/context"
 )
 
 type NodeServer interface {
-	sigma.NodeHandlerServer
+	sigma_api.NodeHandlerServer
 
-	Prepare(urn.URN, string) (Conn, error)
+	Prepare(urn.URN, string, sigma.FunctionSpec) (Conn, error)
 
 	Remove(urn.URN) error
 }
@@ -34,7 +35,7 @@ func NewNodeServer() NodeServer {
 }
 
 // Register implements sigma.NodeHandlerServer
-func (h *nodeServer) Register(ctx context.Context, in *sigma.NodeRegistrationRequest) (*sigma.NodeRegistrationResponse, error) {
+func (h *nodeServer) Register(ctx context.Context, in *sigma_api.NodeRegistrationRequest) (*sigma_api.NodeRegistrationResponse, error) {
 	urn, secret, err := getAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -60,14 +61,15 @@ func (h *nodeServer) Register(ctx context.Context, in *sigma.NodeRegistrationReq
 
 	conn.setRegistered(true)
 
-	// TODO(homebot): send actual function here
-	return &sigma.NodeRegistrationResponse{
-		Urn: in.GetUrn(),
+	return &sigma_api.NodeRegistrationResponse{
+		Urn:        in.GetUrn(),
+		Content:    []byte(conn.spec.Content),
+		Parameters: conn.spec.Parameteres.ToProto(),
 	}, nil
 }
 
-// Subscribe implements sigma.NodeHandlerServer
-func (h *nodeServer) Subscribe(stream sigma.NodeHandler_SubscribeServer) error {
+// Subscribe implements sigma_api.NodeHandlerServer
+func (h *nodeServer) Subscribe(stream sigma_api.NodeHandler_SubscribeServer) error {
 	urn, secret, err := getAuth(stream.Context())
 	if err != nil {
 		return err
@@ -87,8 +89,8 @@ func (h *nodeServer) Subscribe(stream sigma.NodeHandler_SubscribeServer) error {
 	}
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma.DispatchEvent, 100),
-		response: make(chan *sigma.ExecutionResult, 100),
+		request:  make(chan *sigma_api.DispatchEvent, 100),
+		response: make(chan *sigma_api.ExecutionResult, 100),
 	}
 
 	conn.setConnected(channel)
@@ -131,8 +133,8 @@ func (h *nodeServer) Subscribe(stream sigma.NodeHandler_SubscribeServer) error {
 	}
 }
 
-func (h *nodeServer) Prepare(urn urn.URN, secret string) (Conn, error) {
-	node := newNodeConn(urn, secret)
+func (h *nodeServer) Prepare(urn urn.URN, secret string, spec sigma.FunctionSpec) (Conn, error) {
+	node := newNodeConn(urn, secret, spec)
 
 	return node, h.addPendingConn(node)
 }

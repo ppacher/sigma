@@ -454,7 +454,7 @@ func (ctrl *controller) deployNode(ch chan error) {
 	u := ctrl.URN()
 	newUrn := urn.SigmaInstanceResource.BuildURN(u.Namespace(), u.AccountID(), fmt.Sprintf("%s/%s", u.Resource(), uuid.NewV4().String()))
 
-	controller, err := ctrl.deployer.Deploy(ctx, newUrn, ctrl.spec.Type)
+	controller, err := ctrl.deployer.Deploy(ctx, newUrn, ctrl.spec)
 	if err != nil {
 		ch <- err
 		return
