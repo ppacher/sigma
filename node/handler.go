@@ -104,6 +104,7 @@ func (h *nodeServer) Subscribe(stream sigma_api.NodeHandler_SubscribeServer) err
 			if err != nil {
 				glog.Error(urn, " connection failed ", err)
 				close(ch)
+				return
 			}
 
 			if conn.isClosed() {
