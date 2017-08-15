@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Knetic/govaluate"
+	"github.com/homebot/core/utils"
 	"github.com/homebot/sigma"
 	"github.com/yalp/jsonpath"
 )
@@ -63,7 +64,7 @@ func buildTimeFunc(what string) func(...interface{}) (interface{}, error) {
 }
 
 // Evaluate evaluates the condtion on event
-func Evaluate(condtion string, event sigma.Event) (bool, error) {
+func Evaluate(condtion string, event sigma.Event, values utils.ValueMap) (bool, error) {
 	if condtion == "" {
 		return true, nil
 	}
@@ -120,6 +121,10 @@ func Evaluate(condtion string, event sigma.Event) (bool, error) {
 	parameters := map[string]interface{}{
 		"type":    event.Type(),
 		"payload": string(event.Payload()),
+	}
+
+	for k, v := range values {
+		parameters[k] = v
 	}
 
 	res, err := expr.Evaluate(parameters)

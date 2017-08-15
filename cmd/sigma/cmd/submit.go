@@ -20,9 +20,12 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	yaml "github.com/ghodss/yaml"
 	"github.com/homebot/core/urn"
+	"github.com/homebot/core/utils"
 	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
 	"github.com/homebot/sigma"
 
@@ -43,6 +46,12 @@ type FunctionSpec struct {
 		File string `json:"file" yaml:"file"`
 	}
 }
+
+var (
+	intParams    []string
+	stringParams []string
+	boolParams   []string
+)
 
 // submitCmd represents the submit command
 var submitCmd = &cobra.Command{
@@ -68,6 +77,10 @@ var submitCmd = &cobra.Command{
 
 		var spec FunctionSpec
 		if err := yaml.Unmarshal(content, &spec); err != nil {
+			log.Fatal(err)
+		}
+
+		if err := parseParameters(spec.Parameteres); err != nil {
 			log.Fatal(err)
 		}
 
@@ -109,4 +122,77 @@ var submitCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(submitCmd)
+
+	submitCmd.Flags().StringSliceVarP(&intParams, "param-int", "i", nil, "Additional parameters in format key=value")
+	submitCmd.Flags().StringSliceVarP(&stringParams, "param-str", "s", nil, "Additional parameters in format key=value")
+	submitCmd.Flags().StringSliceVarP(&boolParams, "param-bool", "b", nil, "Additional parameters in format key=value")
+}
+
+func parseParameters(m utils.ValueMap) error {
+	for _, v := range intParams {
+		k, i, err := splitInt(v)
+		if err != nil {
+			return err
+		}
+
+		m[k] = i
+	}
+
+	for _, v := range boolParams {
+		k, b, err := splitBool(v)
+		if err != nil {
+			return err
+		}
+
+		m[k] = b
+	}
+
+	for _, v := range stringParams {
+		k, s, err := splitString(v)
+		if err != nil {
+			return nil
+		}
+
+		m[k] = s
+	}
+
+	return nil
+}
+
+func splitInt(k string) (string, int, error) {
+	parts := strings.Split(k, "=")
+	if len(parts) < 2 {
+		return "", 0, errors.New("invalid parameter")
+	}
+
+	key := parts[0]
+	value, err := strconv.ParseInt(parts[1], 10, 64)
+	return key, int(value), err
+}
+
+func splitBool(k string) (string, bool, error) {
+	parts := strings.Split(k, "=")
+	if len(parts) < 2 {
+		return "", false, errors.New("invalid parameter")
+	}
+
+	key := parts[0]
+	switch parts[1] {
+	case "true", "t", "1", "on":
+		return key, true, nil
+	case "false", "f", "0", "off":
+		return key, false, nil
+	}
+
+	return key, false, errors.New("invalid parameter")
+}
+
+func splitString(k string) (string, string, error) {
+	parts := strings.Split(k, "=")
+	if len(parts) < 2 {
+		return "", "", errors.New("invalid parameter")
+	}
+
+	key := parts[0]
+	return key, strings.Join(parts[1:], "="), nil
 }

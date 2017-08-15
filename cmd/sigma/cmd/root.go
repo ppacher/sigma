@@ -48,7 +48,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sigma.yaml)")
-	RootCmd.PersistentFlags().StringVarP(&sigmaServerAddress, "server", "s", "localhost:50051", "The address of the sigma server")
+	RootCmd.PersistentFlags().StringVarP(&sigmaServerAddress, "server", "S", "localhost:50051", "The address of the sigma server")
 }
 
 // initConfig reads in config file and ENV variables if set.

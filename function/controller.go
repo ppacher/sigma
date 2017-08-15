@@ -14,6 +14,7 @@ import (
 	"github.com/homebot/core/event"
 	"github.com/homebot/core/log"
 	"github.com/homebot/core/urn"
+	"github.com/homebot/core/utils"
 	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
 	"github.com/homebot/sigma"
 	"github.com/homebot/sigma/autoscale"
@@ -153,7 +154,7 @@ func (ctrl *controller) Start() error {
 			ctrl.triggers[spec.Type] = t
 
 			ctrl.wg.Add(1)
-			go ctrl.handleTrigger(t, spec)
+			go ctrl.handleTrigger(t, spec, ctrl.spec.Parameteres)
 		}
 
 	}
@@ -165,7 +166,7 @@ func (ctrl *controller) Start() error {
 }
 
 // TODO(homebot): add logging
-func (ctrl *controller) handleTrigger(t trigger.Trigger, tSpec sigma.TriggerSpec) {
+func (ctrl *controller) handleTrigger(t trigger.Trigger, tSpec sigma.TriggerSpec, values utils.ValueMap) {
 	defer ctrl.wg.Done()
 
 	for {
@@ -174,7 +175,7 @@ func (ctrl *controller) handleTrigger(t trigger.Trigger, tSpec sigma.TriggerSpec
 			return
 		}
 
-		ok, err := trigger.Evaluate(tSpec.Condition, evt)
+		ok, err := trigger.Evaluate(tSpec.Condition, evt, values)
 		if ok && err == nil {
 			_, res, err := ctrl.Dispatch(evt)
 			if err != nil {
