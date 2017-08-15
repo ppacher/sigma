@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -65,8 +66,16 @@ var submitCmd = &cobra.Command{
 
 		funcName := args[0]
 
-		path := fmt.Sprintf("%s.yaml", funcName)
-		f, err := os.Open(path)
+		base := ""
+		stat, err := os.Stat(funcName)
+		if err == nil && stat.IsDir() {
+			base = funcName
+			funcName = path.Join(base, path.Base(funcName)+".yaml")
+		} else if err == nil && !stat.IsDir() {
+			base = path.Dir(funcName)
+		}
+
+		f, err := os.Open(funcName)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -94,7 +103,7 @@ var submitCmd = &cobra.Command{
 		}
 
 		if spec.Content.File != "" {
-			data, err := ioutil.ReadFile(spec.Content.File)
+			data, err := ioutil.ReadFile(path.Join(base, spec.Content.File))
 			if err != nil {
 				log.Fatal(err)
 			}

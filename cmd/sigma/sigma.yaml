@@ -9,5 +9,5 @@ launcher:
     types:
       js:
         command: 
-            - /tmp/side
-            - -binary=/usr/bin/cat
+            - /usr/bin/node
+            - /home/ppc/go/src/github.com/homebot/sigma-nodejs/lib/main.js

@@ -1,8 +1,0 @@
-id: test
-type: js
-content: foobar
-triggers:
-    - type: timer
-      options:
-        interval: 1s
-      when: second(jsonpath(payload, "$.timestamp")) % 2 == 0
