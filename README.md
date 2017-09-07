@@ -4,7 +4,7 @@ Sigma is a extensible and hackable Function-as-a-Service (Faas) platform written
 
 > `Sigma` is currently under active development and a first stable version should be released soon. Stay tuned ;)
 
-See [homebot.github.io/sigma](https://homebot.github.io/sigma) for documentation.
+See [homebot.github.io/sigma](https://homebot.github.io/sigma) for in-progress documentation.
 
 ## Roadmap
 
@@ -14,14 +14,15 @@ See [homebot.github.io/sigma](https://homebot.github.io/sigma) for documentation
 - [ ] Rolling updates
 - [ ] Live-reload configuration
 - [ ] OpenTracing
+- [ ] Event dispatcher for MQTT
+- [ ] Event dispatcher for AMQP
 
 **v0.2**
 
-- [ ] Persistent storage for functions
+- [ ] Loading functions from a storage backend
 - [ ] Trigger plugins based on [hashicorp/go-plugin](https://github.com/hashicorp/go-plugin)
-- [ ] Event dispatcher for MQTT
-- [ ] Event dispatcher for AMQP
 - [ ] Prometheus metrics
+- [ ] Support to submit archives as functions
 
 
 **v0.1** *expected 2017-09*
@@ -29,7 +30,7 @@ See [homebot.github.io/sigma](https://homebot.github.io/sigma) for documentation
 - [ ] Test cases
 - [ ] Basic load balancing (round-robin)
 - [ ] Simple command-line client
-- [ ] Launcher: Docker
+- [X] Launcher: Docker
 - [X] Launcher: Process (launching functions as native processes)
 - [X] Support for auto-scaling policies
 - [X] Simple, generic metric interface
