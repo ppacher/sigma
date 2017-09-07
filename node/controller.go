@@ -37,6 +37,7 @@ type Stats struct {
 // ToProtobuf creates the protocol buffer representation of the node state
 func (s Stats) ToProtobuf() *sigma.NodeStatistics {
 	return &sigma.NodeStatistics{
+		CreatedAt:          int64(s.CreatedAt.UnixNano()),
 		LastInvocation:     s.LastInvocation.UnixNano(),
 		Invocations:        s.Invocations,
 		TotalExecutionTime: int64(s.TotalExecTime),

@@ -76,6 +76,7 @@ var inspectCmd = &cobra.Command{
 			for _, n := range res.Nodes {
 				fmt.Printf("\n[%s]\n", urn.FromProtobuf(n.GetUrn()).String())
 				fmt.Printf("\tState: %s\n", n.State.String())
+				fmt.Printf("\tCreated: %s\n", time.Unix(0, n.Statistics.CreatedAt))
 				fmt.Printf("\tInvocations: %d\n", n.Statistics.Invocations)
 				fmt.Printf("\tLast-Invocation: %s\n", time.Unix(0, n.Statistics.LastInvocation).String())
 				fmt.Printf("\tMean-Execution-Time: %s\n", time.Duration(n.Statistics.MeanExecutionTime))

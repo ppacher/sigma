@@ -56,10 +56,6 @@ var execCmd = &cobra.Command{
 			target = urn.URN(execFunctionURN)
 		}
 
-		if execEventType == "" {
-			log.Fatal("--type is missing")
-		}
-
 		e := sigma.NewSimpleEvent(execEventType, []byte(execEventPayload))
 
 		cli, conn, err := getClient()
