@@ -24,6 +24,7 @@ import (
 	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
 	"github.com/homebot/sigma/cmd/sigma/config"
 	"github.com/homebot/sigma/launcher"
+	"github.com/homebot/sigma/launcher/docker"
 	"github.com/homebot/sigma/launcher/process"
 	"github.com/homebot/sigma/node"
 	"github.com/homebot/sigma/scheduler"
@@ -140,6 +141,15 @@ func getLauncher(c config.Config) launcher.Launcher {
 		}
 
 		launcher := process.NewLauncher(types)
+
+		return launcher
+	}
+
+	if c.Launchers.Docker != nil {
+		launcher, err := docker.New(*c.Launchers.Docker)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		return launcher
 	}

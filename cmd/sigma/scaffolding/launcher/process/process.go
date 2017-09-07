@@ -18,7 +18,7 @@ type TypeConfig struct {
 var supportedTypes = map[string]TypeConfig{
 	"js": TypeConfig{
 		ProcessTypeConfig: config.ProcessTypeConfig{
-			Command: []string{"node"},
+			Command: []string{"/usr/bin/node", "sigma-nodejs/lib/main.js"},
 		},
 	},
 }

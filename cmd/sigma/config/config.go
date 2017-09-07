@@ -6,6 +6,8 @@ import (
 	"io"
 	"io/ioutil"
 
+	"github.com/homebot/sigma/launcher/docker"
+
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -25,17 +27,6 @@ type NodeServerConfig struct {
 	AdvertiseAddress string `json:"advertise" yaml:"advertise"`
 }
 
-// DockerTypeConfig is the configuration for a docker image exec type
-type DockerTypeConfig struct {
-	// Image holds the image path of the docker container to use
-	Image string `json:"image" yaml:"image"`
-}
-
-// DockerLauncherConfig is the configuration for a docker launcher
-type DockerLauncherConfig struct {
-	Types map[string]DockerTypeConfig `json:"types" yaml:"types"`
-}
-
 // ProcessTypeConfig holds type configuration values for a process launcher
 type ProcessTypeConfig struct {
 	// Command holds the command to execute for the exec type
@@ -51,7 +42,7 @@ type ProcessLauncherConfig struct {
 // Launcher is the configuration for a launcher
 type Launcher struct {
 	// Docker is the configuration for the docker launcher
-	Docker *DockerLauncherConfig `json:"docker" yaml:"docker"`
+	Docker *docker.Config `json:"docker" yaml:"docker"`
 
 	// Process is the configuration for the process launcher
 	Process *ProcessLauncherConfig `json:"process" yaml:"process"`

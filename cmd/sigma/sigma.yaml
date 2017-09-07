@@ -1,13 +1,10 @@
 server:
-  listen: localhost:50051
+  listen: 127.0.0.1:50051
 nodeServer:
-  listen: localhost:50052
-  advertise: 127.0.0.1:50052
+  listen: 172.17.0.1:50052
+  advertise: 172.17.0.1:50052
 launcher:
-  docker: null
-  process:
+  docker:
     types:
       js:
-        command: 
-            - /usr/bin/node
-            - /home/ppc/go/src/github.com/homebot/sigma-nodejs/lib/main.js
+        image: sigma-nodejs
