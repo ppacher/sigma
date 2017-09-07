@@ -12,5 +12,6 @@ type Trigger interface {
 	Next() (sigma.Event, error)
 
 	// Close closes the trigger
+	// Any calles blocked in Next() should return an error
 	Close() error
 }

@@ -10,6 +10,15 @@ type Factory interface {
 	Build(map[string]string) (Trigger, error)
 }
 
+// FactoryFunc creates a new trigger instance using the given
+// configuration
+type FactoryFunc func(map[string]string) (Trigger, error)
+
+// Build implements the Factory interface and calls f
+func (f FactoryFunc) Build(cfg map[string]string) (Trigger, error) {
+	return f(cfg)
+}
+
 // Builder builds the specifc trigger type
 type Builder interface {
 	Build(typ string, opts map[string]string) (Trigger, error)
@@ -24,6 +33,7 @@ func (d defaultBuilder) Build(typ string, opt map[string]string) (Trigger, error
 	return Build(typ, opt)
 }
 
+// DefaultBuilder is the default trigger builder
 var DefaultBuilder Builder = defaultBuilder{}
 
 // Register registers a new built-in trigger factory
