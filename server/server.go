@@ -5,6 +5,7 @@ import (
 
 	"github.com/homebot/core/urn"
 	"github.com/homebot/idam"
+	uuid "github.com/satori/go.uuid"
 
 	"golang.org/x/net/context"
 
@@ -83,9 +84,12 @@ func (s *Server) Destroy(ctx context.Context, in *api.URN) (*api.Empty, error) {
 
 // Dispatch dispatches an event to the given function and returns the result
 func (s *Server) Dispatch(ctx context.Context, in *sigma_api.DispatchRequest) (*sigma_api.DispatchResult, error) {
-	if in == nil {
+	if in == nil || in.Event == nil {
 		return nil, errors.New("invalid request")
 	}
+
+	// a unique ID for the execution
+	in.Event.Id = uuid.NewV4().String()
 
 	u := urn.FromProtobuf(in.GetTarget())
 	if !u.Valid() {
