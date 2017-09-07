@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/homebot/core/urn"
@@ -31,6 +32,16 @@ func (c Config) EnvVars() map[string]string {
 		"SIGMA_ACCESS_SECRET":   c.Secret,
 		"SIGMA_INSTANCE_URN":    c.URN.String(),
 	}
+}
+
+// Env returns a slice of strings containing environment variables
+func (c Config) Env() []string {
+	var env []string
+	for key, value := range c.EnvVars() {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	return env
 }
 
 // ConfigFromEnv returns the configuration from environment variables

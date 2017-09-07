@@ -3,7 +3,6 @@ package process
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -95,9 +94,7 @@ func (l *Launcher) Create(ctx context.Context, typ string, c launcher.Config) (l
 	go io.Copy(os.Stdout, stdout)
 	go io.Copy(os.Stderr, stderr)
 
-	for key, value := range c.EnvVars() {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
-	}
+	cmd.Env = c.Env()
 
 	instance := &Instance{
 		cmd:    cmd,
