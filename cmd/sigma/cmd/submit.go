@@ -57,8 +57,9 @@ var (
 
 // submitCmd represents the submit command
 var submitCmd = &cobra.Command{
-	Use:   "submit",
-	Short: "Sumbit a function to the Sigma server",
+	Use:     "submit",
+	Aliases: []string{"deploy", "depl"},
+	Short:   "Sumbit a function to the Sigma server",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 1 {
 			log.Fatal(errors.New("expected one argument: function-name"))
