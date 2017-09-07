@@ -1,0 +1,29 @@
+{
+  "name": "weather",
+  "version": "1.0.0",
+  "description": "A Sigma function to query weather information",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack",
+    "start": "node ./lib/main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/homebot/sigma.git"
+  },
+  "author": "Patrick Pacher",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/homebot/sigma/issues"
+  },
+  "homepage": "https://github.com/homebot/sigma#readme",
+  "devDependencies": {
+    "@types/node": "^8.0.27",
+    "ts-loader": "^2.3.6",
+    "typescript": "^2.5.2",
+    "webpack": "^3.5.6"
+  },
+  "dependencies": {
+    "weather-js": "^2.0.0"
+  }
+}

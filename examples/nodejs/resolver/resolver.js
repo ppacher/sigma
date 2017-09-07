@@ -10,7 +10,7 @@ exports.handler = function(data) {
                 }
 
                 resolve(address);
-            });        
+            });
         } catch(e) {
             reject(e);
         }

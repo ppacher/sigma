@@ -1,0 +1,11 @@
+# Id for the new function
+id: weather
+
+# Execution environment (according to launcher configuration)
+type: js
+
+# Content of the function
+content:
+    # Load from file
+    file: dist/index.bundle.js
+    #inline: exports.handler = function(data) { return data.toString('utf8'); }
