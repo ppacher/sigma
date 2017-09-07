@@ -31,6 +31,7 @@ var (
 	execFunctionURN  string
 	execEventType    string
 	execEventPayload string
+	execVerbose      bool
 )
 
 // execCmd represents the exec command
@@ -70,7 +71,7 @@ var execCmd = &cobra.Command{
 		res, err := cli.Dispatch(context.Background(), &sigma_api.DispatchRequest{
 			Target: urn.ToProtobuf(target),
 			Event: &sigma_api.DispatchEvent{
-				Id:      e.Type(),
+				Type:    e.Type(),
 				Payload: e.Payload(),
 			},
 		})
@@ -82,7 +83,9 @@ var execCmd = &cobra.Command{
 			log.Fatal(errors.New(res.GetError()))
 		}
 
-		fmt.Printf("Node: %s\n\n", urn.FromProtobuf(res.GetNode()).String())
+		if execVerbose {
+			fmt.Printf("Node: %s\n\n", urn.FromProtobuf(res.GetNode()).String())
+		}
 		fmt.Println(string(res.GetData()))
 	},
 }
@@ -94,4 +97,5 @@ func init() {
 	execCmd.Flags().StringVarP(&execFunctionURN, "urn", "u", "", "The URN of the function to execute")
 	execCmd.Flags().StringVarP(&execEventType, "type", "t", "", "The event type to publish")
 	execCmd.Flags().StringVarP(&execEventPayload, "payload", "d", "", "The data to send to the function")
+	execCmd.Flags().BoolVarP(&execVerbose, "verbose", "v", false, "Disable versbose output")
 }
