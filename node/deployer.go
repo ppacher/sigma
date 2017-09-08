@@ -18,6 +18,14 @@ type Deployer interface {
 	Deploy(context.Context, urn.URN, sigma.FunctionSpec) (Controller, error)
 }
 
+// DeployFunc implements Deployer
+type DeployFunc func(context.Context, urn.URN, sigma.FunctionSpec) (Controller, error)
+
+// Deploy calls `f` and implements Deployer
+func (f DeployFunc) Deploy(ctx context.Context, u urn.URN, spec sigma.FunctionSpec) (Controller, error) {
+	return f(ctx, u, spec)
+}
+
 type deployer struct {
 	service          NodeServer
 	launcher         launcher.Launcher

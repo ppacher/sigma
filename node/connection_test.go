@@ -7,14 +7,15 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/homebot/core/urn"
-	sigma "github.com/homebot/protobuf/pkg/api/sigma"
+	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	"github.com/homebot/sigma"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConnection_getChannels(t *testing.T) {
 	assert := assert.New(t)
 
-	node := newNodeConn(urn.URN("urn"), "secret")
+	node := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 	if !assert.NotNil(node) {
 		return
 	}
@@ -32,8 +33,8 @@ func TestConnection_getChannels(t *testing.T) {
 	assert.False(node.Connected())
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma.DispatchEvent),
-		response: make(chan *sigma.ExecutionResult),
+		request:  make(chan *sigma_api.DispatchEvent),
+		response: make(chan *sigma_api.ExecutionResult),
 	}
 
 	node.channel = channel
@@ -47,7 +48,7 @@ func TestConnection_getChannels(t *testing.T) {
 
 func TestConnection_Registered(t *testing.T) {
 	assert := assert.New(t)
-	conn := newNodeConn(urn.URN("urn"), "secret")
+	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	assert.False(conn.Registered())
 	conn.setRegistered(true)
@@ -58,19 +59,19 @@ func TestConnection_Registered(t *testing.T) {
 
 func TestConnection_Send(t *testing.T) {
 	assert := assert.New(t)
-	conn := newNodeConn(urn.URN("urn"), "secret")
+	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	assert.False(conn.Connected())
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma.DispatchEvent, 10),
-		response: make(chan *sigma.ExecutionResult, 10),
+		request:  make(chan *sigma_api.DispatchEvent, 10),
+		response: make(chan *sigma_api.ExecutionResult, 10),
 	}
 	conn.setConnected(channel)
 	conn.setRegistered(true)
 	assert.True(conn.Connected())
 
-	req := &sigma.DispatchEvent{
+	req := &sigma_api.DispatchEvent{
 		Id: "foobar",
 	}
 
@@ -85,12 +86,12 @@ func TestConnection_Send(t *testing.T) {
 
 func TestConnection_Send_NotConnected(t *testing.T) {
 	assert := assert.New(t)
-	conn := newNodeConn(urn.URN("urn"), "secret")
+	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	assert.False(conn.Connected())
 	conn.setRegistered(true)
 
-	req := &sigma.DispatchEvent{
+	req := &sigma_api.DispatchEvent{
 		Id: "foobar",
 	}
 
@@ -100,19 +101,19 @@ func TestConnection_Send_NotConnected(t *testing.T) {
 
 func TestConnection_CloseDuringSend(t *testing.T) {
 	assert := assert.New(t)
-	conn := newNodeConn(urn.URN("urn"), "secret")
+	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	assert.False(conn.Connected())
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma.DispatchEvent),
-		response: make(chan *sigma.ExecutionResult),
+		request:  make(chan *sigma_api.DispatchEvent),
+		response: make(chan *sigma_api.ExecutionResult),
 	}
 	conn.setConnected(channel)
 	conn.setRegistered(true)
 	assert.True(conn.Connected())
 
-	req := &sigma.DispatchEvent{
+	req := &sigma_api.DispatchEvent{
 		Id: "foobar",
 	}
 
@@ -128,24 +129,25 @@ func TestConnection_CloseDuringSend(t *testing.T) {
 	assert.NoError(conn.Close())
 	assert.True(conn.isClosed())
 
-	assert.Error(conn.Close())
+	// Re-closing the connection is a NOP
+	assert.NoError(conn.Close())
 
 	<-ch
 }
 
 func TestConnection_Receive(t *testing.T) {
 	assert := assert.New(t)
-	conn := newNodeConn(urn.URN("urn"), "secret")
+	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma.DispatchEvent),
-		response: make(chan *sigma.ExecutionResult, 1),
+		request:  make(chan *sigma_api.DispatchEvent),
+		response: make(chan *sigma_api.ExecutionResult, 1),
 	}
 
 	conn.setConnected(channel)
 	conn.setRegistered(true)
 
-	msg := &sigma.ExecutionResult{
+	msg := &sigma_api.ExecutionResult{
 		Id: "foobar",
 	}
 
@@ -162,11 +164,11 @@ func TestConnection_Receive(t *testing.T) {
 
 func TestConnection_Receive_Closed(t *testing.T) {
 	assert := assert.New(t)
-	conn := newNodeConn(urn.URN("urn"), "secret")
+	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma.DispatchEvent),
-		response: make(chan *sigma.ExecutionResult),
+		request:  make(chan *sigma_api.DispatchEvent),
+		response: make(chan *sigma_api.ExecutionResult),
 	}
 
 	conn.setConnected(channel)
@@ -188,17 +190,18 @@ func TestConnection_Receive_Closed(t *testing.T) {
 	assert.NoError(conn.Close())
 	assert.True(conn.isClosed())
 
-	assert.Error(conn.Close())
+	// Reclosing the connection is a NOP
+	assert.NoError(conn.Close())
 	<-ch
 }
 
 func TestConnection_Receive_ContextCanceled(t *testing.T) {
 	assert := assert.New(t)
-	conn := newNodeConn(urn.URN("urn"), "secret")
+	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma.DispatchEvent),
-		response: make(chan *sigma.ExecutionResult),
+		request:  make(chan *sigma_api.DispatchEvent),
+		response: make(chan *sigma_api.ExecutionResult),
 	}
 
 	conn.setConnected(channel)

@@ -60,3 +60,11 @@ type Launcher interface {
 	// Create creates a new instance or returns an error
 	Create(context.Context, string, Config) (Instance, error)
 }
+
+// CreateFunc creates a new node instance and implements Launcher
+type CreateFunc func(context.Context, string, Config) (Instance, error)
+
+// Create calls `f` and implemements Launcher
+func (f CreateFunc) Create(ctx context.Context, typ string, config Config) (Instance, error) {
+	return f(ctx, typ, config)
+}

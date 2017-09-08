@@ -416,7 +416,11 @@ func (ctrl *controller) runHooks() {
 	ctrl.hookLock.RLock()
 	defer ctrl.hookLock.RUnlock()
 
-	// TODO(homebot) capture panic in hooks
+	defer func() {
+		if x := recover(); x != nil {
+			ctrl.l.Errorf("panic in control loop hook: %#v", x)
+		}
+	}()
 
 	for _, hook := range ctrl.hooks {
 		hook(ctrl)
@@ -447,6 +451,7 @@ func (ctrl *controller) deployNode(ch chan error) {
 	defer ctrl.wg.Done()
 
 	// Deploying the node should not take longer than 10 seconds
+	// TODO(ppacher) make this configuratble
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 

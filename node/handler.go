@@ -13,6 +13,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+// NodeServer handles communication with function nodes
+// TODO(ppacher): find a better name
 type NodeServer interface {
 	sigma_api.NodeHandlerServer
 
