@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/homebot/core/urn"
-	"github.com/homebot/idam"
 	uuid "github.com/satori/go.uuid"
 
 	"golang.org/x/net/context"
@@ -17,9 +16,7 @@ import (
 
 // Server is a gRPC Sigma server and implements sigma.SigmaServer
 type Server struct {
-	scheduler     scheduler.Scheduler
-	authenticator idam.Authenticator
-	authorizer    idam.Authorizer
+	scheduler scheduler.Scheduler
 }
 
 // NewServer creates a new sigma server for the given scheduler
@@ -41,7 +38,7 @@ func NewServer(s scheduler.Scheduler, opts ...Option) (*Server, error) {
 func (s *Server) Create(ctx context.Context, in *sigma_api.CreateFunctionRequest) (*sigma_api.CreateFunctionResponse, error) {
 	target := urn.SigmaFunctionResource.BuildURN(s.scheduler.URN().Namespace(), s.scheduler.URN().AccountID(), "")
 
-	if err := s.isPermitted(ctx, idam.ActionWrite, target); err != nil {
+	if err := s.isPermitted(ctx, "", target); err != nil {
 		return nil, err
 	}
 
@@ -178,36 +175,7 @@ func (s *Server) List(ctx context.Context, _ *api.Empty) (*sigma_api.ListResult,
 	}, nil
 }
 
-func (s *Server) authenticate(ctx context.Context) (*idam.Identity, error) {
-	if s.authenticator == nil {
-		return &idam.DummyIdentity, nil
-	}
-
-	return s.authenticator.From(ctx)
-}
-
-func (s *Server) authorized(i *idam.Identity, action idam.Action, target urn.URN) bool {
-	if s.authorizer == nil {
-		return true
-	}
-
-	return s.authorizer.Allowed(*i, action, target)
-}
-
-func (s *Server) isPermitted(ctx context.Context, action idam.Action, target urn.URN) error {
-	identity, err := s.authenticate(ctx)
-	if err != nil {
-		return err
-	}
-
-	if identity == nil {
-		return idam.ErrNotAuthenticated
-	}
-
-	if !s.authorized(identity, action, target) {
-		return idam.ErrNotAllowed
-	}
-
+func (s *Server) isPermitted(ctx context.Context, action string, target urn.URN) error {
 	return nil
 }
 
