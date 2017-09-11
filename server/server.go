@@ -4,10 +4,12 @@ import (
 	"errors"
 
 	"github.com/homebot/core/urn"
+	"github.com/homebot/idam"
 	uuid "github.com/satori/go.uuid"
 
 	"golang.org/x/net/context"
 
+	"github.com/homebot/idam/token"
 	"github.com/homebot/protobuf/pkg/api"
 	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
 	"github.com/homebot/sigma"
@@ -17,6 +19,10 @@ import (
 // Server is a gRPC Sigma server and implements sigma.SigmaServer
 type Server struct {
 	scheduler scheduler.Scheduler
+
+	// keyFn is used to resolve the signing certifiact/key
+	// for verifying JWTs
+	keyFn token.KeyProviderFunc
 }
 
 // NewServer creates a new sigma server for the given scheduler
@@ -38,12 +44,17 @@ func NewServer(s scheduler.Scheduler, opts ...Option) (*Server, error) {
 func (s *Server) Create(ctx context.Context, in *sigma_api.CreateFunctionRequest) (*sigma_api.CreateFunctionResponse, error) {
 	target := urn.SigmaFunctionResource.BuildURN(s.scheduler.URN().Namespace(), s.scheduler.URN().AccountID(), "")
 
-	if err := s.isPermitted(ctx, "", target); err != nil {
+	auth, err := s.isPermitted(ctx, "", target)
+	if err != nil {
 		return nil, err
 	}
 
 	if in == nil {
 		return nil, errors.New("invalid request")
+	}
+
+	if auth != nil {
+		ctx = context.WithValue(ctx, "accountId", auth.URN.AccountID())
 	}
 
 	spec := sigma.SpecFromProto(in.GetSpec())
@@ -72,6 +83,10 @@ func (s *Server) Destroy(ctx context.Context, in *api.URN) (*api.Empty, error) {
 		return nil, errors.New("invalid URN")
 	}
 
+	if _, err := s.isPermitted(ctx, "destroy", u); err != nil {
+		return nil, err
+	}
+
 	if err := s.scheduler.Destroy(ctx, u); err != nil {
 		return nil, err
 	}
@@ -91,6 +106,10 @@ func (s *Server) Dispatch(ctx context.Context, in *sigma_api.DispatchRequest) (*
 	u := urn.FromProtobuf(in.GetTarget())
 	if !u.Valid() {
 		return nil, errors.New("invalid URN")
+	}
+
+	if _, err := s.isPermitted(ctx, "dispatch", u); err != nil {
+		return nil, err
 	}
 
 	if in.GetEvent() == nil || in.GetEvent().GetId() == "" {
@@ -120,6 +139,10 @@ func (s *Server) Inspect(ctx context.Context, in *api.URN) (*sigma_api.Function,
 		return nil, errors.New("invalid URN")
 	}
 
+	if _, err := s.isPermitted(ctx, "inspect", u); err != nil {
+		return nil, err
+	}
+
 	f, err := s.scheduler.Inspect(ctx, u)
 	if err != nil {
 		return nil, err
@@ -144,6 +167,11 @@ func (s *Server) Inspect(ctx context.Context, in *api.URN) (*sigma_api.Function,
 
 // List returns a list of functions managed by the scheduler
 func (s *Server) List(ctx context.Context, _ *api.Empty) (*sigma_api.ListResult, error) {
+	auth, err := s.isPermitted(ctx, "list", "")
+	if err != nil {
+		return nil, err
+	}
+
 	functions, err := s.scheduler.Functions(ctx)
 
 	if err != nil {
@@ -153,6 +181,10 @@ func (s *Server) List(ctx context.Context, _ *api.Empty) (*sigma_api.ListResult,
 	var result []*sigma_api.Function
 
 	for _, f := range functions {
+		if auth != nil && f.URN.AccountID() != auth.URN.AccountID() {
+			continue
+		}
+
 		var nodes []*sigma_api.Node
 
 		for _, n := range f.Nodes {
@@ -175,8 +207,27 @@ func (s *Server) List(ctx context.Context, _ *api.Empty) (*sigma_api.ListResult,
 	}, nil
 }
 
-func (s *Server) isPermitted(ctx context.Context, action string, target urn.URN) error {
-	return nil
+func (s *Server) isPermitted(ctx context.Context, action string, target urn.URN) (*token.Token, error) {
+	if s.keyFn != nil {
+		t, err := token.FromMetadata(ctx, s.keyFn)
+		if err != nil {
+			return t, err
+		}
+
+		if t.HasGroup(urn.SigmaAdminGroup) {
+			return t, nil
+		}
+
+		if target != "" {
+			if target.AccountID() == t.URN.AccountID() {
+				return t, nil
+			}
+		}
+
+		return t, idam.ErrNotAuthenticated
+	}
+
+	return nil, nil
 }
 
 // compile time check
