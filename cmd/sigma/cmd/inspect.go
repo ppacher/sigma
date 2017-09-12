@@ -55,7 +55,8 @@ var inspectCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		res, err := cli.Inspect(context.Background(), urn.ToProtobuf(u))
+		ctx, _ := getContext(context.Background())
+		res, err := cli.Inspect(ctx, urn.ToProtobuf(u))
 		if err != nil {
 			log.Fatal(err)
 		}

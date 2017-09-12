@@ -34,7 +34,9 @@ var listCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		res, err := cli.List(context.Background(), &api.Empty{})
+		ctx, _ := getContext(context.Background())
+
+		res, err := cli.List(ctx, &api.Empty{})
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -26,6 +26,7 @@ var cfgFile string
 
 var (
 	sigmaServerAddress string
+	idamTokenFile      string
 )
 
 // RootCmd represents the base command when called without any subcommands
@@ -49,6 +50,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sigma.yaml)")
 	RootCmd.PersistentFlags().StringVarP(&sigmaServerAddress, "server", "S", "localhost:50051", "The address of the sigma server")
+	RootCmd.PersistentFlags().StringVarP(&idamTokenFile, "jwt", "j", "", "Path to IDAM JWT file for authentication")
 }
 
 // initConfig reads in config file and ENV variables if set.

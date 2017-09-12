@@ -52,7 +52,9 @@ var destroyCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		_, err = cli.Destroy(context.Background(), urn.ToProtobuf(target))
+		ctx, _ := getContext(context.Background())
+
+		_, err = cli.Destroy(ctx, urn.ToProtobuf(target))
 		if err != nil {
 			log.Fatal(err)
 		}

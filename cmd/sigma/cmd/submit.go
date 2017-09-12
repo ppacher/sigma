@@ -122,7 +122,8 @@ var submitCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		res, err := cli.Create(context.Background(), &sigma_api.CreateFunctionRequest{
+		ctx, _ := getContext(context.Background())
+		res, err := cli.Create(ctx, &sigma_api.CreateFunctionRequest{
 			Spec: spec.FunctionSpec.ToProtobuf(),
 		})
 

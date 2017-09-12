@@ -64,7 +64,9 @@ var execCmd = &cobra.Command{
 		}
 		defer conn.Close()
 
-		res, err := cli.Dispatch(context.Background(), &sigma_api.DispatchRequest{
+		ctx, _ := getContext(context.Background())
+
+		res, err := cli.Dispatch(ctx, &sigma_api.DispatchRequest{
 			Target: urn.ToProtobuf(target),
 			Event: &sigma_api.DispatchEvent{
 				Type:    e.Type(),
