@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/homebot/core/urn"
-	sigma "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 )
 
 // Stats holds node instance statistics
@@ -35,8 +35,8 @@ type Stats struct {
 }
 
 // ToProtobuf creates the protocol buffer representation of the node state
-func (s Stats) ToProtobuf() *sigma.NodeStatistics {
-	return &sigma.NodeStatistics{
+func (s Stats) ToProtobuf() *sigmaV1.NodeStatistics {
+	return &sigmaV1.NodeStatistics{
 		CreatedAt:          int64(s.CreatedAt.UnixNano()),
 		LastInvocation:     s.LastInvocation.UnixNano(),
 		Invocations:        s.Invocations,
@@ -46,7 +46,7 @@ func (s Stats) ToProtobuf() *sigma.NodeStatistics {
 }
 
 // StatsFromProtobuf creates a node.Stats from it's protocol buffer representation
-func StatsFromProtobuf(s *sigma.NodeStatistics) Stats {
+func StatsFromProtobuf(s *sigmaV1.NodeStatistics) Stats {
 	return Stats{
 		LastInvocation: time.Unix(0, s.GetLastInvocation()),
 		Invocations:    s.GetInvocations(),
@@ -70,20 +70,20 @@ func (s State) IsHealthy() bool {
 }
 
 // ToProtobuf converts the node state to it's protocol buffer representation
-func (s State) ToProtobuf() sigma.Node_State {
-	return sigma.Node_State(sigma.Node_State_value[strings.ToUpper(string(s))])
+func (s State) ToProtobuf() sigmaV1.Node_State {
+	return sigmaV1.Node_State(sigmaV1.Node_State_value[strings.ToUpper(string(s))])
 }
 
 // StateFromProtobuf coverts a protocol buffer node state
-func StateFromProtobuf(s sigma.Node_State) State {
+func StateFromProtobuf(s sigmaV1.Node_State) State {
 	switch s {
-	case sigma.Node_ACTIVE:
+	case sigmaV1.Node_ACTIVE:
 		return StateActive
-	case sigma.Node_DISABLED:
+	case sigmaV1.Node_DISABLED:
 		return StateDisabled
-	case sigma.Node_RUNNING:
+	case sigmaV1.Node_RUNNING:
 		return StateRunning
-	case sigma.Node_UNHEALTHY:
+	case sigmaV1.Node_UNHEALTHY:
 		return StateUnhealthy
 	default:
 		return State(strings.ToLower(s.String()))
@@ -117,7 +117,7 @@ type Controller interface {
 	Stats() Stats
 
 	// Dispatch dispatches an event to the node
-	Dispatch(context.Context, *sigma.DispatchEvent) ([]byte, error)
+	Dispatch(context.Context, *sigmaV1.DispatchEvent) ([]byte, error)
 
 	// OnDestroy registers an on-destroy handler
 	OnDestroy(func(Controller))
@@ -164,7 +164,7 @@ func (ctrl *controller) URN() urn.URN {
 
 // Dispatch dispatches the given event to the node and returns
 // the execution result
-func (ctrl *controller) Dispatch(ctx context.Context, event *sigma.DispatchEvent) ([]byte, error) {
+func (ctrl *controller) Dispatch(ctx context.Context, event *sigmaV1.DispatchEvent) ([]byte, error) {
 	start := time.Now()
 
 	ctrl.setState(StateRunning)
@@ -189,9 +189,9 @@ func (ctrl *controller) Dispatch(ctx context.Context, event *sigma.DispatchEvent
 	}()
 
 	switch v := res.GetExecutionResult().(type) {
-	case *sigma.ExecutionResult_Error:
+	case *sigmaV1.ExecutionResult_Error:
 		return nil, errors.New(v.Error)
-	case *sigma.ExecutionResult_Result:
+	case *sigmaV1.ExecutionResult_Result:
 		return v.Result, nil
 	default:
 		return nil, fmt.Errorf("unexpected result: %#v", v)

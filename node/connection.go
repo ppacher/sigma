@@ -8,17 +8,17 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/homebot/core/urn"
-	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 )
 
 // Conn is the connection to a node instance
 type Conn interface {
 	// Send sends a dispatch event
-	Send(*sigma_api.DispatchEvent) error
+	Send(*sigmaV1.DispatchEvent) error
 
 	// Receive receives an execution result
-	Receive(context.Context) (*sigma_api.ExecutionResult, error)
+	Receive(context.Context) (*sigmaV1.ExecutionResult, error)
 
 	// Connected returns true if the node is currently connected
 	Connected() bool
@@ -32,8 +32,8 @@ type Conn interface {
 }
 
 type nodeChannel struct {
-	request  chan *sigma_api.DispatchEvent
-	response chan *sigma_api.ExecutionResult
+	request  chan *sigmaV1.DispatchEvent
+	response chan *sigmaV1.ExecutionResult
 }
 
 type nodeConn struct {
@@ -79,7 +79,7 @@ func (n *nodeConn) Close() error {
 	return nil
 }
 
-func (n *nodeConn) Send(in *sigma_api.DispatchEvent) error {
+func (n *nodeConn) Send(in *sigmaV1.DispatchEvent) error {
 	req, _, err := n.getChannels()
 	if err != nil {
 		return err
@@ -93,7 +93,7 @@ func (n *nodeConn) Send(in *sigma_api.DispatchEvent) error {
 	return nil
 }
 
-func (n *nodeConn) Receive(ctx context.Context) (*sigma_api.ExecutionResult, error) {
+func (n *nodeConn) Receive(ctx context.Context) (*sigmaV1.ExecutionResult, error) {
 	_, res, err := n.getChannels()
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (n *nodeConn) setRegistered(b bool) {
 	n.registered = b
 }
 
-func (n *nodeConn) getChannels() (chan *sigma_api.DispatchEvent, chan *sigma_api.ExecutionResult, error) {
+func (n *nodeConn) getChannels() (chan *sigmaV1.DispatchEvent, chan *sigmaV1.ExecutionResult, error) {
 	n.rw.Lock()
 	defer n.rw.Unlock()
 

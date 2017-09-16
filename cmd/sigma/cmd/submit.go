@@ -27,7 +27,7 @@ import (
 	yaml "github.com/ghodss/yaml"
 	"github.com/homebot/core/urn"
 	"github.com/homebot/core/utils"
-	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 
 	"github.com/spf13/cobra"
@@ -123,7 +123,7 @@ var submitCmd = &cobra.Command{
 		defer conn.Close()
 
 		ctx, _ := getContext(context.Background())
-		res, err := cli.Create(ctx, &sigma_api.CreateFunctionRequest{
+		res, err := cli.Create(ctx, &sigmaV1.CreateFunctionRequest{
 			Spec: spec.FunctionSpec.ToProtobuf(),
 		})
 
@@ -131,7 +131,7 @@ var submitCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		u := urn.FromProtobuf(res.GetUrn())
+		u := urn.URN(res.GetUrn())
 		fmt.Printf("Function created successfully\nURN: %s\n", u.String())
 	},
 }

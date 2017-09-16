@@ -15,7 +15,7 @@ import (
 	"github.com/homebot/core/log"
 	"github.com/homebot/core/urn"
 	"github.com/homebot/core/utils"
-	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"github.com/homebot/sigma/autoscale"
 	"github.com/homebot/sigma/metrics"
@@ -325,8 +325,8 @@ func (ctrl *controller) Dispatch(event sigma.Event) (selectedNode urn.URN, resul
 	for id, node := range ctrl.controllers {
 		if node.State().CanSelect() {
 			selectedNode = id
-			result, err = node.Dispatch(context.Background(), &sigma_api.DispatchEvent{
-				Urn:     urn.ToProtobuf(id),
+			result, err = node.Dispatch(context.Background(), &sigmaV1.DispatchEvent{
+				Urn:     id.String(),
 				Payload: event.Payload(),
 			})
 

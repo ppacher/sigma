@@ -15,7 +15,7 @@ import (
 
 	"github.com/homebot/core/urn"
 	"github.com/homebot/core/utils"
-	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma/launcher"
 )
 
@@ -86,13 +86,13 @@ func main() {
 	}
 	defer conn.Close()
 
-	cli := sigma_api.NewNodeHandlerClient(conn)
+	cli := sigmaV1.NewNodeHandlerClient(conn)
 
 	md := metadata.Pairs("node-urn", c.URN.String(), "node-secret", c.Secret)
 	callCtx := metadata.NewOutgoingContext(ctx, md)
 
-	res, err := cli.Register(callCtx, &sigma_api.NodeRegistrationRequest{
-		Urn:      urn.ToProtobuf(c.URN),
+	res, err := cli.Register(callCtx, &sigmaV1.NodeRegistrationRequest{
+		Urn:      c.URN.String(),
 		NodeType: "dummy",
 	})
 	if err != nil {
@@ -106,7 +106,7 @@ func main() {
 	}
 
 	init := InitMessage{
-		URN:        urn.FromProtobuf(res.GetUrn()).String(),
+		URN:        urn.URN(res.GetUrn()).String(),
 		Content:    res.GetContent(),
 		Parameters: utils.ValueMapFrom(res.GetParameters()),
 	}
@@ -133,9 +133,9 @@ func main() {
 				return
 			}
 
-			if err := stream.Send(&sigma_api.ExecutionResult{
+			if err := stream.Send(&sigmaV1.ExecutionResult{
 				Id: msg.GetId(),
-				ExecutionResult: &sigma_api.ExecutionResult_Result{
+				ExecutionResult: &sigmaV1.ExecutionResult_Result{
 					Result: msg.GetPayload(),
 				},
 			}); err != nil {

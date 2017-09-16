@@ -2,7 +2,7 @@ package sigma
 
 import (
 	"github.com/homebot/core/utils"
-	"github.com/homebot/protobuf/pkg/api/sigma"
+	"github.com/homebot/protobuf/pkg/api/sigma/v1"
 )
 
 // TriggerSpec describes a sigma function trigger

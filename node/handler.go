@@ -8,7 +8,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/homebot/core/urn"
-	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"golang.org/x/net/context"
 )
@@ -16,7 +16,7 @@ import (
 // NodeServer handles communication with function nodes
 // TODO(ppacher): find a better name
 type NodeServer interface {
-	sigma_api.NodeHandlerServer
+	sigmaV1.NodeHandlerServer
 
 	Prepare(urn.URN, string, sigma.FunctionSpec) (Conn, error)
 
@@ -37,7 +37,7 @@ func NewNodeServer() NodeServer {
 }
 
 // Register implements sigma.NodeHandlerServer
-func (h *nodeServer) Register(ctx context.Context, in *sigma_api.NodeRegistrationRequest) (*sigma_api.NodeRegistrationResponse, error) {
+func (h *nodeServer) Register(ctx context.Context, in *sigmaV1.NodeRegistrationRequest) (*sigmaV1.NodeRegistrationResponse, error) {
 	urn, secret, err := getAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -63,15 +63,15 @@ func (h *nodeServer) Register(ctx context.Context, in *sigma_api.NodeRegistratio
 
 	conn.setRegistered(true)
 
-	return &sigma_api.NodeRegistrationResponse{
+	return &sigmaV1.NodeRegistrationResponse{
 		Urn:        in.GetUrn(),
 		Content:    []byte(conn.spec.Content),
 		Parameters: conn.spec.Parameteres.ToProto(),
 	}, nil
 }
 
-// Subscribe implements sigma_api.NodeHandlerServer
-func (h *nodeServer) Subscribe(stream sigma_api.NodeHandler_SubscribeServer) error {
+// Subscribe implements sigmaV1.NodeHandlerServer
+func (h *nodeServer) Subscribe(stream sigmaV1.NodeHandler_SubscribeServer) error {
 	urn, secret, err := getAuth(stream.Context())
 	if err != nil {
 		return err
@@ -91,8 +91,8 @@ func (h *nodeServer) Subscribe(stream sigma_api.NodeHandler_SubscribeServer) err
 	}
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma_api.DispatchEvent, 100),
-		response: make(chan *sigma_api.ExecutionResult, 100),
+		request:  make(chan *sigmaV1.DispatchEvent, 100),
+		response: make(chan *sigmaV1.ExecutionResult, 100),
 	}
 
 	conn.setConnected(channel)

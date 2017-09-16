@@ -7,7 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/homebot/core/urn"
-	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"github.com/stretchr/testify/assert"
 )
@@ -33,8 +33,8 @@ func TestConnection_getChannels(t *testing.T) {
 	assert.False(node.Connected())
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma_api.DispatchEvent),
-		response: make(chan *sigma_api.ExecutionResult),
+		request:  make(chan *sigmaV1.DispatchEvent),
+		response: make(chan *sigmaV1.ExecutionResult),
 	}
 
 	node.channel = channel
@@ -64,14 +64,14 @@ func TestConnection_Send(t *testing.T) {
 	assert.False(conn.Connected())
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma_api.DispatchEvent, 10),
-		response: make(chan *sigma_api.ExecutionResult, 10),
+		request:  make(chan *sigmaV1.DispatchEvent, 10),
+		response: make(chan *sigmaV1.ExecutionResult, 10),
 	}
 	conn.setConnected(channel)
 	conn.setRegistered(true)
 	assert.True(conn.Connected())
 
-	req := &sigma_api.DispatchEvent{
+	req := &sigmaV1.DispatchEvent{
 		Id: "foobar",
 	}
 
@@ -91,7 +91,7 @@ func TestConnection_Send_NotConnected(t *testing.T) {
 	assert.False(conn.Connected())
 	conn.setRegistered(true)
 
-	req := &sigma_api.DispatchEvent{
+	req := &sigmaV1.DispatchEvent{
 		Id: "foobar",
 	}
 
@@ -106,14 +106,14 @@ func TestConnection_CloseDuringSend(t *testing.T) {
 	assert.False(conn.Connected())
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma_api.DispatchEvent),
-		response: make(chan *sigma_api.ExecutionResult),
+		request:  make(chan *sigmaV1.DispatchEvent),
+		response: make(chan *sigmaV1.ExecutionResult),
 	}
 	conn.setConnected(channel)
 	conn.setRegistered(true)
 	assert.True(conn.Connected())
 
-	req := &sigma_api.DispatchEvent{
+	req := &sigmaV1.DispatchEvent{
 		Id: "foobar",
 	}
 
@@ -140,14 +140,14 @@ func TestConnection_Receive(t *testing.T) {
 	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma_api.DispatchEvent),
-		response: make(chan *sigma_api.ExecutionResult, 1),
+		request:  make(chan *sigmaV1.DispatchEvent),
+		response: make(chan *sigmaV1.ExecutionResult, 1),
 	}
 
 	conn.setConnected(channel)
 	conn.setRegistered(true)
 
-	msg := &sigma_api.ExecutionResult{
+	msg := &sigmaV1.ExecutionResult{
 		Id: "foobar",
 	}
 
@@ -167,8 +167,8 @@ func TestConnection_Receive_Closed(t *testing.T) {
 	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma_api.DispatchEvent),
-		response: make(chan *sigma_api.ExecutionResult),
+		request:  make(chan *sigmaV1.DispatchEvent),
+		response: make(chan *sigmaV1.ExecutionResult),
 	}
 
 	conn.setConnected(channel)
@@ -200,8 +200,8 @@ func TestConnection_Receive_ContextCanceled(t *testing.T) {
 	conn := newNodeConn(urn.URN("urn"), "secret", sigma.FunctionSpec{})
 
 	channel := &nodeChannel{
-		request:  make(chan *sigma_api.DispatchEvent),
-		response: make(chan *sigma_api.ExecutionResult),
+		request:  make(chan *sigmaV1.DispatchEvent),
+		response: make(chan *sigmaV1.ExecutionResult),
 	}
 
 	conn.setConnected(channel)

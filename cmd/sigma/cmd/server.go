@@ -21,7 +21,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma/cmd/sigma/config"
 	"github.com/homebot/sigma/launcher"
 	"github.com/homebot/sigma/launcher/docker"
@@ -99,10 +99,10 @@ var serverCmd = &cobra.Command{
 		log.Printf("sigma server running on %s\n", grpcServerListener.Addr())
 
 		grpcNodeServer := grpc.NewServer()
-		sigma_api.RegisterNodeHandlerServer(grpcNodeServer, nodeServer)
+		sigmaV1.RegisterNodeHandlerServer(grpcNodeServer, nodeServer)
 
 		grpcSigmaServer := grpc.NewServer()
-		sigma_api.RegisterSigmaServer(grpcSigmaServer, server)
+		sigmaV1.RegisterSigmaServer(grpcSigmaServer, server)
 
 		ch := make(chan struct{})
 		go func() {

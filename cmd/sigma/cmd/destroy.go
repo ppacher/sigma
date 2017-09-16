@@ -18,6 +18,7 @@ import (
 	"log"
 
 	"github.com/homebot/core/urn"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 
 	"github.com/spf13/cobra"
 )
@@ -54,7 +55,9 @@ var destroyCmd = &cobra.Command{
 
 		ctx, _ := getContext(context.Background())
 
-		_, err = cli.Destroy(ctx, urn.ToProtobuf(target))
+		_, err = cli.Destroy(ctx, &sigmaV1.DestroyRequest{
+			Urn: target.String(),
+		})
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/homebot/core/urn"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"github.com/spf13/cobra"
 )
@@ -56,7 +57,9 @@ var inspectCmd = &cobra.Command{
 		defer conn.Close()
 
 		ctx, _ := getContext(context.Background())
-		res, err := cli.Inspect(ctx, urn.ToProtobuf(u))
+		res, err := cli.Inspect(ctx, &sigmaV1.InspectRequest{
+			Urn: u.String(),
+		})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -69,13 +72,13 @@ var inspectCmd = &cobra.Command{
 		if !inspectVerbose {
 			fmt.Println("")
 			for _, n := range res.Nodes {
-				nodeURN := urn.FromProtobuf(n.GetUrn())
+				nodeURN := urn.URN(n.GetUrn())
 				nodeID := nodeURN[len(u.String())+1:]
 				fmt.Printf("%s:\t%s\t% 3d invocations\n", nodeID, n.GetState().String(), n.Statistics.Invocations)
 			}
 		} else {
 			for _, n := range res.Nodes {
-				fmt.Printf("\n[%s]\n", urn.FromProtobuf(n.GetUrn()).String())
+				fmt.Printf("\n[%s]\n", urn.URN(n.GetUrn()).String())
 				fmt.Printf("\tState: %s\n", n.State.String())
 				fmt.Printf("\tCreated: %s\n", time.Unix(0, n.Statistics.CreatedAt))
 				fmt.Printf("\tInvocations: %d\n", n.Statistics.Invocations)

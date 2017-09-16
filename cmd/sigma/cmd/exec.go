@@ -21,7 +21,7 @@ import (
 
 	"github.com/homebot/core/urn"
 
-	sigma_api "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"github.com/spf13/cobra"
 )
@@ -66,9 +66,9 @@ var execCmd = &cobra.Command{
 
 		ctx, _ := getContext(context.Background())
 
-		res, err := cli.Dispatch(ctx, &sigma_api.DispatchRequest{
-			Target: urn.ToProtobuf(target),
-			Event: &sigma_api.DispatchEvent{
+		res, err := cli.Dispatch(ctx, &sigmaV1.DispatchRequest{
+			Target: target.String(),
+			Event: &sigmaV1.DispatchEvent{
 				Type:    e.Type(),
 				Payload: e.Payload(),
 			},
@@ -82,7 +82,7 @@ var execCmd = &cobra.Command{
 		}
 
 		if execVerbose {
-			fmt.Printf("Node: %s\n\n", urn.FromProtobuf(res.GetNode()).String())
+			fmt.Printf("Node: %s\n\n", urn.URN(res.GetNode()).String())
 		}
 		fmt.Println(string(res.GetData()))
 	},

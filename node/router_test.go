@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	sigma "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -17,17 +17,17 @@ type nodeConnMock struct {
 	send chan struct{}
 }
 
-func (n *nodeConnMock) Send(in *sigma.DispatchEvent) error {
+func (n *nodeConnMock) Send(in *sigmaV1.DispatchEvent) error {
 	return n.Called(in).Error(0)
 }
 
-func (n *nodeConnMock) Receive(ctx context.Context) (*sigma.ExecutionResult, error) {
+func (n *nodeConnMock) Receive(ctx context.Context) (*sigmaV1.ExecutionResult, error) {
 	select {
 	case <-n.send:
 	case <-ctx.Done():
 	}
 	args := n.Called()
-	return args.Get(0).(*sigma.ExecutionResult), args.Error(1)
+	return args.Get(0).(*sigmaV1.ExecutionResult), args.Error(1)
 }
 
 func (n *nodeConnMock) Connected() bool {
@@ -48,11 +48,11 @@ func TestRouter_Routing(t *testing.T) {
 	conn := new(nodeConnMock)
 	conn.send = make(chan struct{})
 
-	conn.On("Receive").Return(&sigma.ExecutionResult{}, errors.New("dummy")).Once()
-	conn.On("Receive").Return(&sigma.ExecutionResult{
+	conn.On("Receive").Return(&sigmaV1.ExecutionResult{}, errors.New("dummy")).Once()
+	conn.On("Receive").Return(&sigmaV1.ExecutionResult{
 		Id: "foobar",
 	}, nil).Once()
-	conn.On("Receive").Return(&sigma.ExecutionResult{}, errors.New("closed"))
+	conn.On("Receive").Return(&sigmaV1.ExecutionResult{}, errors.New("closed"))
 	conn.On("Close").Return(nil).Once()
 	conn.On("Close").Return(errors.New("dummy error"))
 
@@ -61,7 +61,7 @@ func TestRouter_Routing(t *testing.T) {
 		return
 	}
 
-	res := make(chan *sigma.ExecutionResult, 1)
+	res := make(chan *sigmaV1.ExecutionResult, 1)
 	router.addRoute("foobar", res)
 
 	conn.send <- struct{}{}
@@ -80,12 +80,12 @@ func TestRouter_Dispatch(t *testing.T) {
 	conn := new(nodeConnMock)
 	conn.send = make(chan struct{})
 
-	in := &sigma.DispatchEvent{
+	in := &sigmaV1.DispatchEvent{
 		Id: "foobar",
 	}
-	res := &sigma.ExecutionResult{
+	res := &sigmaV1.ExecutionResult{
 		Id: "foobar",
-		ExecutionResult: &sigma.ExecutionResult_Result{
+		ExecutionResult: &sigmaV1.ExecutionResult_Result{
 			Result: []byte("foobar"),
 		},
 	}
@@ -133,12 +133,12 @@ func TestRouter_DispatchCanceled(t *testing.T) {
 	conn := new(nodeConnMock)
 	conn.send = make(chan struct{})
 
-	in := &sigma.DispatchEvent{
+	in := &sigmaV1.DispatchEvent{
 		Id: "foobar",
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	conn.On("Receive").Return(&sigma.ExecutionResult{}, nil)
+	conn.On("Receive").Return(&sigmaV1.ExecutionResult{}, nil)
 	conn.On("Send", in).Return(nil)
 	conn.On("Close").Return(nil)
 

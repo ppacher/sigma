@@ -6,7 +6,7 @@ import (
 
 	"github.com/satori/go.uuid"
 
-	sigma "github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"golang.org/x/net/context"
 )
 
@@ -14,7 +14,7 @@ import (
 // events and receiving the processing result
 type Router interface {
 	// Dispatch dispatches an event and returns the result
-	Dispatch(context.Context, *sigma.DispatchEvent) (*sigma.ExecutionResult, error)
+	Dispatch(context.Context, *sigmaV1.DispatchEvent) (*sigmaV1.ExecutionResult, error)
 
 	// Close closes the router and the underlying NodeConn
 	Close() error
@@ -30,7 +30,7 @@ type Router interface {
 type router struct {
 	wg     sync.WaitGroup
 	mu     sync.Mutex
-	routes map[string]chan *sigma.ExecutionResult
+	routes map[string]chan *sigmaV1.ExecutionResult
 	close  chan struct{}
 
 	conn Conn
@@ -39,7 +39,7 @@ type router struct {
 // NewRouter returns a new router for the node connection
 func NewRouter(conn Conn) Router {
 	router := &router{
-		routes: make(map[string]chan *sigma.ExecutionResult),
+		routes: make(map[string]chan *sigmaV1.ExecutionResult),
 		close:  make(chan struct{}),
 		conn:   conn,
 	}
@@ -58,8 +58,8 @@ func (r *router) Registered() bool { return r.conn.Registered() }
 func (r *router) Connected() bool { return r.conn.Connected() }
 
 // Dispatch dispatches an event and returns the result
-func (r *router) Dispatch(ctx context.Context, in *sigma.DispatchEvent) (*sigma.ExecutionResult, error) {
-	res := make(chan *sigma.ExecutionResult, 1)
+func (r *router) Dispatch(ctx context.Context, in *sigmaV1.DispatchEvent) (*sigmaV1.ExecutionResult, error) {
+	res := make(chan *sigmaV1.ExecutionResult, 1)
 
 	id := uuid.NewV4().String()
 
@@ -103,14 +103,14 @@ func (r *router) deleteRoute(id string) {
 	delete(r.routes, id)
 }
 
-func (r *router) addRoute(id string, ch chan *sigma.ExecutionResult) {
+func (r *router) addRoute(id string, ch chan *sigmaV1.ExecutionResult) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.routes[id] = ch
 }
 
-func (r *router) getRoute(id string) (chan *sigma.ExecutionResult, bool) {
+func (r *router) getRoute(id string) (chan *sigmaV1.ExecutionResult, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

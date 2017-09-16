@@ -4,12 +4,12 @@ import (
 	"context"
 
 	"github.com/homebot/idam/token"
-	"github.com/homebot/protobuf/pkg/api/sigma"
+	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-func getClient() (sigma.SigmaClient, *grpc.ClientConn, error) {
+func getClient() (sigmaV1.SigmaClient, *grpc.ClientConn, error) {
 	addr := sigmaServerAddress
 	if addr == "" {
 		addr = "localhost:50051"
@@ -20,7 +20,7 @@ func getClient() (sigma.SigmaClient, *grpc.ClientConn, error) {
 		return nil, nil, err
 	}
 
-	return sigma.NewSigmaClient(conn), conn, nil
+	return sigmaV1.NewSigmaClient(conn), conn, nil
 }
 
 func getContext(ctx context.Context) (context.Context, string) {
