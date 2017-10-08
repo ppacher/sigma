@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	yaml "github.com/ghodss/yaml"
-	"github.com/homebot/core/urn"
 	"github.com/homebot/core/utils"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
@@ -131,8 +130,8 @@ var submitCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		u := urn.URN(res.GetUrn())
-		fmt.Printf("Function created successfully\nURN: %s\n", u.String())
+		u := res.GetName()
+		fmt.Printf("Function created successfully\nURN: %s\n", u)
 	},
 }
 

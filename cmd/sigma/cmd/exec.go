@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/homebot/core/urn"
-
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"github.com/spf13/cobra"
@@ -39,21 +37,17 @@ var execCmd = &cobra.Command{
 	Use:   "exec",
 	Short: "Execute a function",
 	Run: func(cmd *cobra.Command, args []string) {
-		target := urn.URN("")
+		target := ""
 		if execFunctionName == "" && execFunctionURN == "" {
 			log.Fatalf("Either --name or --urn must be specified")
 		}
 
-		if execFunctionName != "" {
-			target = urn.SigmaFunctionResource.BuildURN("", "", execFunctionName)
-		}
-
-		if execFunctionURN != "" && target.String() != "" {
+		if execFunctionURN != "" && target != "" {
 			log.Fatalf("Only --name or --urn can be specified")
 		}
 
 		if execFunctionURN != "" {
-			target = urn.URN(execFunctionURN)
+			target = execFunctionURN
 		}
 
 		e := sigma.NewSimpleEvent(execEventType, []byte(execEventPayload))
@@ -67,7 +61,7 @@ var execCmd = &cobra.Command{
 		ctx, _ := getContext(context.Background())
 
 		res, err := cli.Dispatch(ctx, &sigmaV1.DispatchRequest{
-			Target: target.String(),
+			Target: target,
 			Event: &sigmaV1.DispatchEvent{
 				Type:    e.Type(),
 				Payload: e.Payload(),
@@ -82,7 +76,7 @@ var execCmd = &cobra.Command{
 		}
 
 		if execVerbose {
-			fmt.Printf("Node: %s\n\n", urn.URN(res.GetNode()).String())
+			fmt.Printf("Node: %s\n\n", res.GetNode())
 		}
 		fmt.Println(string(res.GetData()))
 	},

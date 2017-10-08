@@ -13,7 +13,6 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/homebot/core/urn"
 	"github.com/homebot/core/utils"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma/launcher"
@@ -36,11 +35,6 @@ func main() {
 	}
 
 	c := launcher.ConfigFromEnv()
-
-	if !c.URN.Valid() {
-		os.Stderr.Write([]byte(fmt.Sprintf("invalid URN received: %s", c.URN)))
-		return
-	}
 
 	f, err := os.Create("/tmp/env")
 	if err != nil {
@@ -88,11 +82,11 @@ func main() {
 
 	cli := sigmaV1.NewNodeHandlerClient(conn)
 
-	md := metadata.Pairs("node-urn", c.URN.String(), "node-secret", c.Secret)
+	md := metadata.Pairs("node-urn", c.URN, "node-secret", c.Secret)
 	callCtx := metadata.NewOutgoingContext(ctx, md)
 
 	res, err := cli.Register(callCtx, &sigmaV1.NodeRegistrationRequest{
-		Urn:      c.URN.String(),
+		Urn:      c.URN,
 		NodeType: "dummy",
 	})
 	if err != nil {
@@ -106,7 +100,7 @@ func main() {
 	}
 
 	init := InitMessage{
-		URN:        urn.URN(res.GetUrn()).String(),
+		URN:        res.GetUrn(),
 		Content:    res.GetContent(),
 		Parameters: utils.ValueMapFrom(res.GetParameters()),
 	}

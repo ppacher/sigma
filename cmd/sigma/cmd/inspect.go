@@ -17,9 +17,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
-	"github.com/homebot/core/urn"
+	"github.com/golang/protobuf/ptypes"
+
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"github.com/spf13/cobra"
@@ -36,18 +36,10 @@ var inspectCmd = &cobra.Command{
 	Use:   "inspect",
 	Short: "Inspect a function running at the sigma server",
 	Run: func(cmd *cobra.Command, args []string) {
-		var u urn.URN
+		var u string
 
 		if inspectURN != "" {
-			u = urn.URN(inspectURN)
-		}
-
-		if inspectName != "" {
-			if u != "" {
-				log.Fatal("only --name or --urn can be specified")
-			}
-
-			u = urn.SigmaFunctionResource.BuildURN("", "", inspectName)
+			u = inspectURN
 		}
 
 		cli, conn, err := getClient()
@@ -58,7 +50,7 @@ var inspectCmd = &cobra.Command{
 
 		ctx, _ := getContext(context.Background())
 		res, err := cli.Inspect(ctx, &sigmaV1.InspectRequest{
-			Urn: u.String(),
+			Name: u,
 		})
 		if err != nil {
 			log.Fatal(err)
@@ -66,25 +58,38 @@ var inspectCmd = &cobra.Command{
 
 		spec := sigma.SpecFromProto(res.Spec)
 
-		fmt.Printf("Resource-ID: %s\n", u.String())
+		fmt.Printf("Resource-ID: %s\n", u)
 		fmt.Printf("Type: %s\n", spec.Type)
 
 		if !inspectVerbose {
 			fmt.Println("")
 			for _, n := range res.Nodes {
-				nodeURN := urn.URN(n.GetUrn())
-				nodeID := nodeURN[len(u.String())+1:]
+				nodeURN := n.GetUrn()
+				nodeID := nodeURN[len(u)+1:]
 				fmt.Printf("%s:\t%s\t% 3d invocations\n", nodeID, n.GetState().String(), n.Statistics.Invocations)
 			}
 		} else {
 			for _, n := range res.Nodes {
-				fmt.Printf("\n[%s]\n", urn.URN(n.GetUrn()).String())
+				created, createdErr := ptypes.Timestamp(n.Statistics.GetCreatedTime())
+				last, lastErr := ptypes.Timestamp(n.Statistics.GetLastInvocation())
+				mean, meanErr := ptypes.Duration(n.Statistics.GetMeanExecTime())
+				total, totalErr := ptypes.Duration(n.Statistics.GetTotalExecTime())
+
+				fmt.Printf("\n[%s]\n", n.GetUrn())
 				fmt.Printf("\tState: %s\n", n.State.String())
-				fmt.Printf("\tCreated: %s\n", time.Unix(0, n.Statistics.CreatedAt))
+				if createdErr == nil {
+					fmt.Printf("\tCreated: %s\n", created)
+				}
 				fmt.Printf("\tInvocations: %d\n", n.Statistics.Invocations)
-				fmt.Printf("\tLast-Invocation: %s\n", time.Unix(0, n.Statistics.LastInvocation).String())
-				fmt.Printf("\tMean-Execution-Time: %s\n", time.Duration(n.Statistics.MeanExecutionTime))
-				fmt.Printf("\tTotal-Execution-Time: %s\n", time.Duration(n.Statistics.TotalExecutionTime))
+				if lastErr == nil {
+					fmt.Printf("\tLast-Invocation: %s\n", last)
+				}
+				if meanErr == nil {
+					fmt.Printf("\tMean-Execution-Time: %s\n", mean)
+				}
+				if totalErr == nil {
+					fmt.Printf("\tTotal-Execution-Time: %s\n", total)
+				}
 			}
 		}
 	},

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/homebot/core/urn"
 	"github.com/homebot/sigma/node"
 )
 
@@ -21,7 +20,7 @@ var (
 type AutoScaler interface {
 	// Check checks the current metrics and node controllers and decides if the function controller
 	// should be scaled in or out
-	Check(metrics map[string]float64, controllers map[urn.URN]node.State) (string, ScaleDirection, int)
+	Check(metrics map[string]float64, controllers map[string]node.State) (string, ScaleDirection, int)
 
 	// AttachPolicy attaches a new scaling policy
 	AttachPolicy(name string, policy Policy) error
@@ -67,7 +66,7 @@ func (a *autoScaler) DetachPolicy(name string) error {
 
 // Check updates the metrics and checks the current state of the controller
 // registry
-func (a *autoScaler) Check(metrics map[string]float64, states map[urn.URN]node.State) (string, ScaleDirection, int) {
+func (a *autoScaler) Check(metrics map[string]float64, states map[string]node.State) (string, ScaleDirection, int) {
 	a.rw.Lock()
 	defer a.rw.Unlock()
 

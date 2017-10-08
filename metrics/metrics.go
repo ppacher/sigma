@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/homebot/core/urn"
 	"github.com/homebot/sigma/node"
 )
 
@@ -12,7 +11,7 @@ import (
 type Metric interface {
 	// Update re-calculates the metrics value and is called on every
 	// control loop iteration
-	Update(map[urn.URN]node.Controller) float64
+	Update(map[string]node.Controller) float64
 
 	// String returns a string representation of the metric
 	String() string
@@ -34,7 +33,7 @@ type Metrics struct {
 }
 
 // Update recalculates all metric values and returns the result
-func (m *Metrics) Update(states map[urn.URN]node.Controller) map[string]float64 {
+func (m *Metrics) Update(states map[string]node.Controller) map[string]float64 {
 	m.rw.Lock()
 	defer m.rw.Unlock()
 

@@ -17,7 +17,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/homebot/core/urn"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 
 	"github.com/spf13/cobra"
@@ -33,18 +32,14 @@ var destroyCmd = &cobra.Command{
 	Use:   "destroy",
 	Short: "Destroy a function deployed on Sigma",
 	Run: func(cmd *cobra.Command, args []string) {
-		var target urn.URN
+		var target string
 
 		if destroyURN != "" && destroyName != "" {
 			log.Fatal("only --name or --urn can be specified")
 		}
 
 		if destroyURN != "" {
-			target = urn.URN(destroyURN)
-		}
-
-		if destroyName != "" {
-			target = urn.SigmaFunctionResource.BuildURN("", "", destroyName)
+			target = destroyURN
 		}
 
 		cli, conn, err := getClient()
@@ -56,13 +51,13 @@ var destroyCmd = &cobra.Command{
 		ctx, _ := getContext(context.Background())
 
 		_, err = cli.Destroy(ctx, &sigmaV1.DestroyRequest{
-			Urn: target.String(),
+			Name: target,
 		})
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		log.Printf("Function %s destroyed", target.String())
+		log.Printf("Function %s destroyed", target)
 	},
 }
 

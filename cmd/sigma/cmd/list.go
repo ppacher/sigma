@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/homebot/protobuf/pkg/api"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ var listCmd = &cobra.Command{
 
 		ctx, _ := getContext(context.Background())
 
-		res, err := cli.List(ctx, &api.Empty{})
+		res, err := cli.List(ctx, &empty.Empty{})
 		if err != nil {
 			log.Fatal(err)
 		}

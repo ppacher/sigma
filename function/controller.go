@@ -3,7 +3,6 @@ package function
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 	"sync"
@@ -12,9 +11,8 @@ import (
 	"github.com/satori/go.uuid"
 
 	"github.com/homebot/core/event"
-	"github.com/homebot/core/log"
-	"github.com/homebot/core/urn"
 	"github.com/homebot/core/utils"
+	"github.com/homebot/insight/logger"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"github.com/homebot/sigma/autoscale"
@@ -58,7 +56,8 @@ type ControlLoopHook func(c Controller)
 // Controller handles all node controller for a given
 // function spec.
 type Controller interface {
-	urn.Resource
+	//urn.Resource
+	URN() string
 
 	// Start starts the function controller's control loop
 	Start() error
@@ -73,13 +72,13 @@ type Controller interface {
 	AddNodeController(node.Controller) error
 
 	// DestroyNode destroys the given controller
-	DestroyNode(urn.URN) error
+	DestroyNode(string) error
 
 	// Nodes returns the state for all controllers registered
-	Nodes() map[urn.URN]node.State
+	Nodes() map[string]node.State
 
 	// Stats returns a map with current node statistics
-	Stats() map[urn.URN]node.Stats
+	Stats() map[string]node.Stats
 
 	// FunctionSpec returns the function specification for node controllers
 	// managed by this registry
@@ -87,7 +86,7 @@ type Controller interface {
 
 	// Dispatch dispatches an event to one of the function nodes and returns
 	// the ID of the selected node, the result and any error encountered
-	Dispatch(event sigma.Event) (urn.URN, []byte, error)
+	Dispatch(event sigma.Event) (string, []byte, error)
 
 	// AttachControlLoopHook attaches a new control loop hook to be executed
 	// on each interation of the function controller control loop
@@ -101,7 +100,7 @@ type Controller interface {
 type controller struct {
 	spec sigma.FunctionSpec
 
-	ctx urn.ResourceContext
+	//ctx urn.ResourceContext
 
 	event          event.Dispatcher
 	deployer       node.Deployer
@@ -111,7 +110,7 @@ type controller struct {
 
 	// registered controllers
 	rw          sync.RWMutex
-	controllers map[urn.URN]node.Controller
+	controllers map[string]node.Controller
 
 	// control loop management
 	stop chan struct{}
@@ -121,14 +120,14 @@ type controller struct {
 	autoScaler          autoscale.AutoScaler
 	metrics             *metrics.Metrics
 
-	l log.Logger
+	l logger.Logger
 
 	hookLock sync.RWMutex
 	hooks    []ControlLoopHook
 }
 
-func (ctrl *controller) URN() urn.URN {
-	return urn.SigmaFunctionResource.BuildURN(ctrl.ctx.Namespace, ctrl.ctx.AccountID, ctrl.spec.ID)
+func (ctrl *controller) URN() string {
+	return ctrl.spec.ID
 }
 
 // Start starts the function controllers' control loop
@@ -250,13 +249,13 @@ func (ctrl *controller) AddNodeController(n node.Controller) error {
 
 	ctrl.l.Infof("node %s attached to controller", n.URN())
 
-	ctrl.dispatchEvent(urn.SigmaEventNodeCreated, n.URN().Resource(), nil)
+	//ctrl.dispatchEvent(urn.SigmaEventNodeCreated, n.URN().Resource(), nil)
 
 	return nil
 }
 
 // DestroyNode destroys the controller with `id`
-func (ctrl *controller) DestroyNode(u urn.URN) error {
+func (ctrl *controller) DestroyNode(u string) error {
 	ctrl.rw.Lock()
 	defer ctrl.rw.Unlock()
 
@@ -265,21 +264,21 @@ func (ctrl *controller) DestroyNode(u urn.URN) error {
 		return ErrUnknownController
 	}
 
-	ctrl.l.Infof("destroying node %s", u.String())
+	ctrl.l.Infof("destroying node %s", u)
 
 	delete(ctrl.controllers, u)
 
-	ctrl.dispatchEvent(urn.SigmaEventNodeDestroyed, u.Resource(), nil)
+	//ctrl.dispatchEvent(urn.SigmaEventNodeDestroyed, u.Resource(), nil)
 
 	return node.Close()
 }
 
 // Nodes returns all controllers and their current state
-func (ctrl *controller) Nodes() map[urn.URN]node.State {
+func (ctrl *controller) Nodes() map[string]node.State {
 	ctrl.rw.RLock()
 	defer ctrl.rw.RUnlock()
 
-	m := make(map[urn.URN]node.State)
+	m := make(map[string]node.State)
 	for key, node := range ctrl.controllers {
 		m[key] = node.State()
 	}
@@ -288,11 +287,11 @@ func (ctrl *controller) Nodes() map[urn.URN]node.State {
 }
 
 // Stats returns statistics for each node part of this function controller
-func (ctrl *controller) Stats() map[urn.URN]node.Stats {
+func (ctrl *controller) Stats() map[string]node.Stats {
 	ctrl.rw.RLock()
 	defer ctrl.rw.RUnlock()
 
-	m := make(map[urn.URN]node.Stats)
+	m := make(map[string]node.Stats)
 	for key, node := range ctrl.controllers {
 		m[key] = node.Stats()
 	}
@@ -306,16 +305,16 @@ func (ctrl *controller) FunctionSpec() sigma.FunctionSpec {
 }
 
 // Dispatch dispatches an event to a healthy and idle controller
-func (ctrl *controller) Dispatch(event sigma.Event) (selectedNode urn.URN, result []byte, err error) {
+func (ctrl *controller) Dispatch(event sigma.Event) (selectedNode string, result []byte, err error) {
 	defer func() {
 		if err != nil {
 			n := selectedNode
-			if n.String() == "" {
+			if n == "" {
 				n = ctrl.URN()
 			}
-			ctrl.dispatchEvent(urn.SigmaEventFunctionFailed, n.Resource(), []byte(err.Error()))
+			//ctrl.dispatchEvent(urn.SigmaEventFunctionFailed, n.Resource(), []byte(err.Error()))
 		} else {
-			ctrl.dispatchEvent(urn.SigmaEventFunctionExecuted, selectedNode.Resource(), result)
+			//ctrl.dispatchEvent(urn.SigmaEventFunctionExecuted, selectedNode.Resource(), result)
 		}
 	}()
 
@@ -326,14 +325,14 @@ func (ctrl *controller) Dispatch(event sigma.Event) (selectedNode urn.URN, resul
 		if node.State().CanSelect() {
 			selectedNode = id
 			result, err = node.Dispatch(context.Background(), &sigmaV1.DispatchEvent{
-				Urn:     id.String(),
+				Urn:     id,
 				Payload: event.Payload(),
 			})
 
 			if err == nil {
-				ctrl.l.Infof("dispatched event to %s", selectedNode.String())
+				ctrl.l.Infof("dispatched event to %s", selectedNode)
 			} else {
-				ctrl.l.Warnf("failed to dispatch event: %s (selected-node %s)", err, selectedNode.String())
+				ctrl.l.Warnf("failed to dispatch event: %s (selected-node %s)", err, selectedNode)
 			}
 
 			return
@@ -377,7 +376,6 @@ func (ctrl *controller) DetachControlLoopHook(hook ControlLoopHook) error {
 			ctrl.hooks[idx] = nil
 			ctrl.hooks = append(ctrl.hooks[:idx], ctrl.hooks[idx+1:]...)
 
-			log.Infof("detached control loop hook %q", reflect.TypeOf(fn).Name())
 			return nil
 		}
 	}
@@ -390,7 +388,7 @@ func NewController(spec sigma.FunctionSpec, opts ...ControllerOption) (Controlle
 	ctrl := &controller{
 		spec:        spec,
 		metrics:     metrics.GetMetrics(),
-		controllers: make(map[urn.URN]node.Controller),
+		controllers: make(map[string]node.Controller),
 		triggers:    make(map[string]trigger.Trigger),
 	}
 
@@ -406,7 +404,7 @@ func NewController(spec sigma.FunctionSpec, opts ...ControllerOption) (Controlle
 	}
 
 	if ctrl.l == nil {
-		ctrl.l = log.WithURN(ctrl.URN())
+		ctrl.l, _ = logger.NewInsightLogger(logger.WithResource(spec.ID))
 	}
 
 	return ctrl, nil
@@ -457,8 +455,7 @@ func (ctrl *controller) deployNode(ch chan error) {
 
 	ctrl.l.Infof("deploying a new node ...")
 
-	u := ctrl.URN()
-	newUrn := urn.SigmaInstanceResource.BuildURN(u.Namespace(), u.AccountID(), fmt.Sprintf("%s/%s", u.Resource(), uuid.NewV4().String()))
+	newUrn := uuid.NewV4().String() //urn.SigmaInstanceResource.BuildURN(u.Namespace(), u.AccountID(), fmt.Sprintf("%s/%s", u.Resource(), uuid.NewV4().String()))
 
 	controller, err := ctrl.deployer.Deploy(ctx, newUrn, ctrl.spec)
 	if err != nil {
@@ -486,7 +483,8 @@ func (ctrl *controller) scaleDown(amount int) {
 			case node.StateActive, node.StateDisabled, node.StateUnhealthy:
 				removed++
 				if err := ctrl.DestroyNode(id); err != nil {
-					log.Warnf("failed to completely destroy %s: %s", id, err.Error())
+					l, _ := logger.NewInsightLogger()
+					l.Warnf("failed to completely destroy %s: %s", id, err.Error())
 				}
 			default:
 			}
@@ -568,12 +566,5 @@ func (ctrl *controller) controlLoop(stop chan struct{}) {
 	}
 }
 
-func (ctrl *controller) dispatchEvent(typ urn.ResourceType, id string, payload []byte) {
-	if ctrl.event == nil {
-		return
-	}
-
-	e := event.BuildEvent(typ.BuildURN(ctrl.ctx.Namespace, ctrl.ctx.AccountID, id), payload)
-
-	ctrl.event.Dispatch(e)
+func (ctrl *controller) dispatchEvent(typ string, id string, payload []byte) {
 }

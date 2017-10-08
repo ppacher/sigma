@@ -8,7 +8,6 @@ import (
 	"github.com/homebot/sigma/trigger"
 
 	"github.com/homebot/core/event"
-	"github.com/homebot/core/urn"
 	"github.com/homebot/sigma/autoscale"
 )
 
@@ -28,7 +27,7 @@ func WithEventDispatcher(disp event.Dispatcher) ControllerOption {
 // WithNamespace sets the namespace the function ID belongs to
 func WithNamespace(ns string) ControllerOption {
 	return func(c *controller) error {
-		c.ctx.Namespace = ns
+		//c.ctx.Namespace = ns
 		return nil
 	}
 }
@@ -36,15 +35,7 @@ func WithNamespace(ns string) ControllerOption {
 // WithAccountID sets the account ID the function controller belongs to
 func WithAccountID(id string) ControllerOption {
 	return func(c *controller) error {
-		c.ctx.AccountID = id
-		return nil
-	}
-}
-
-// WithResourceContext sets the resource context for the function controller
-func WithResourceContext(ctx urn.ResourceContext) ControllerOption {
-	return func(c *controller) error {
-		c.ctx = ctx
+		//c.ctx.AccountID = id
 		return nil
 	}
 }

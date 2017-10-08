@@ -6,8 +6,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/homebot/core/urn"
-
 	"github.com/homebot/sigma"
 	"github.com/homebot/sigma/trigger"
 )
@@ -26,7 +24,7 @@ type Timer struct {
 }
 
 // URN returns the URN for the timer
-func (t *Timer) URN() urn.URN { return urn.SigmaTriggerResource.BuildURN("", "", "timer") }
+func (t *Timer) URN() string { return "timer" }
 
 // Close closes the timer
 func (t *Timer) Close() error {

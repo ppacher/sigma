@@ -3,7 +3,6 @@ package node
 import (
 	"time"
 
-	"github.com/homebot/core/urn"
 	"github.com/homebot/sigma"
 	"github.com/homebot/sigma/launcher"
 	uuid "github.com/satori/go.uuid"
@@ -15,14 +14,14 @@ type Deployer interface {
 
 	// Deploy deploys a new node and returns a controller
 	// for managing/communication with the node
-	Deploy(context.Context, urn.URN, sigma.FunctionSpec) (Controller, error)
+	Deploy(context.Context, string, sigma.FunctionSpec) (Controller, error)
 }
 
 // DeployFunc implements Deployer
-type DeployFunc func(context.Context, urn.URN, sigma.FunctionSpec) (Controller, error)
+type DeployFunc func(context.Context, string, sigma.FunctionSpec) (Controller, error)
 
 // Deploy calls `f` and implements Deployer
-func (f DeployFunc) Deploy(ctx context.Context, u urn.URN, spec sigma.FunctionSpec) (Controller, error) {
+func (f DeployFunc) Deploy(ctx context.Context, u string, spec sigma.FunctionSpec) (Controller, error) {
 	return f(ctx, u, spec)
 }
 
@@ -52,7 +51,7 @@ func NewDeployer(svc NodeServer, launcher launcher.Launcher, handlerAddress stri
 }
 
 // Deploy deploys a new node
-func (d *deployer) Deploy(ctx context.Context, u urn.URN, spec sigma.FunctionSpec) (Controller, error) {
+func (d *deployer) Deploy(ctx context.Context, u string, spec sigma.FunctionSpec) (Controller, error) {
 	// First we need to setup the NodeServer to accept the new node as soon
 	// as it is ready
 	secret := uuid.NewV4().String()

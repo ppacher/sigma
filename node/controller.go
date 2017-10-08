@@ -7,11 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
+
 	"github.com/homebot/sigma/launcher"
 
 	"golang.org/x/net/context"
 
-	"github.com/homebot/core/urn"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 )
 
@@ -36,22 +37,30 @@ type Stats struct {
 
 // ToProtobuf creates the protocol buffer representation of the node state
 func (s Stats) ToProtobuf() *sigmaV1.NodeStatistics {
+	created, _ := ptypes.TimestampProto(s.CreatedAt)
+	lastInvocation, _ := ptypes.TimestampProto(s.LastInvocation)
+	total := ptypes.DurationProto(s.TotalExecTime)
+	mean := ptypes.DurationProto(s.MeanExecTime)
+
 	return &sigmaV1.NodeStatistics{
-		CreatedAt:          int64(s.CreatedAt.UnixNano()),
-		LastInvocation:     s.LastInvocation.UnixNano(),
-		Invocations:        s.Invocations,
-		TotalExecutionTime: int64(s.TotalExecTime),
-		MeanExecutionTime:  int64(s.MeanExecTime),
+		CreatedTime:    created,
+		LastInvocation: lastInvocation,
+		Invocations:    s.Invocations,
+		TotalExecTime:  total,
+		MeanExecTime:   mean,
 	}
 }
 
 // StatsFromProtobuf creates a node.Stats from it's protocol buffer representation
 func StatsFromProtobuf(s *sigmaV1.NodeStatistics) Stats {
+	last, _ := ptypes.Timestamp(s.GetLastInvocation())
+	total, _ := ptypes.Duration(s.GetTotalExecTime())
+	mean, _ := ptypes.Duration(s.GetMeanExecTime())
 	return Stats{
-		LastInvocation: time.Unix(0, s.GetLastInvocation()),
+		LastInvocation: last,
 		Invocations:    s.GetInvocations(),
-		TotalExecTime:  time.Duration(s.GetTotalExecutionTime()),
-		MeanExecTime:   time.Duration(s.GetMeanExecutionTime()),
+		TotalExecTime:  total,
+		MeanExecTime:   mean,
 	}
 }
 
@@ -108,7 +117,7 @@ const (
 
 // Controller manages a given function node
 type Controller interface {
-	urn.Resource
+	URN() string
 
 	// State returns the current state of the node
 	State() State
@@ -128,7 +137,7 @@ type Controller interface {
 
 type controller struct {
 	id  string
-	urn urn.URN
+	urn string
 
 	router   Router
 	instance launcher.Instance
@@ -158,7 +167,7 @@ func (ctrl *controller) State() State {
 	return ctrl.state
 }
 
-func (ctrl *controller) URN() urn.URN {
+func (ctrl *controller) URN() string {
 	return ctrl.urn
 }
 
@@ -226,7 +235,7 @@ func (ctrl *controller) setState(s State) {
 }
 
 // CreateController creates a new controller for the given node
-func CreateController(u urn.URN, instance launcher.Instance, conn Conn) Controller {
+func CreateController(u string, instance launcher.Instance, conn Conn) Controller {
 	return &controller{
 		urn:      u,
 		router:   NewRouter(conn),

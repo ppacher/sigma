@@ -21,6 +21,8 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/homebot/idam/policy"
+	"github.com/homebot/insight/logger"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma/cmd/sigma/config"
 	"github.com/homebot/sigma/launcher"
@@ -101,7 +103,18 @@ var serverCmd = &cobra.Command{
 		grpcNodeServer := grpc.NewServer()
 		sigmaV1.RegisterNodeHandlerServer(grpcNodeServer, nodeServer)
 
-		grpcSigmaServer := grpc.NewServer()
+		l, err := logger.NewInsightLogger(logger.WithServiceType("sigma"))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		p, err := policy.NewEnforcer("homebot/api/sigma/v1/sigma.proto")
+		if err != nil {
+			log.Fatal(err)
+		}
+		p.SetLogger(l)
+
+		grpcSigmaServer := grpc.NewServer(p.ServerOptions()...)
 		sigmaV1.RegisterSigmaServer(grpcSigmaServer, server)
 
 		ch := make(chan struct{})

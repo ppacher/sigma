@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-
-	"github.com/homebot/core/urn"
 )
 
 // Instance is an instance created and managed by a launcher
@@ -22,7 +20,7 @@ type Instance interface {
 type Config struct {
 	Address string
 	Secret  string
-	URN     urn.URN
+	URN     string
 }
 
 // EnvVars returns the current configuration as a map[string]string
@@ -30,7 +28,7 @@ func (c Config) EnvVars() map[string]string {
 	return map[string]string{
 		"SIGMA_HANDLER_ADDRESS": c.Address,
 		"SIGMA_ACCESS_SECRET":   c.Secret,
-		"SIGMA_INSTANCE_URN":    c.URN.String(),
+		"SIGMA_INSTANCE_URN":    c.URN,
 	}
 }
 
@@ -49,7 +47,7 @@ func ConfigFromEnv() Config {
 	var c Config
 
 	c.Secret = os.Getenv("SIGMA_ACCESS_SECRET")
-	c.URN = urn.URN(os.Getenv("SIGMA_INSTANCE_URN"))
+	c.URN = os.Getenv("SIGMA_INSTANCE_URN")
 	c.Address = os.Getenv("SIGMA_HANDLER_ADDRESS")
 
 	return c

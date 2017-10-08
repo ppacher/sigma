@@ -3,14 +3,13 @@ package server
 import (
 	"errors"
 
-	"github.com/homebot/core/urn"
-	"github.com/homebot/idam"
+	"github.com/golang/protobuf/ptypes/empty"
 	uuid "github.com/satori/go.uuid"
 
 	"golang.org/x/net/context"
 
+	"github.com/homebot/idam/policy"
 	"github.com/homebot/idam/token"
-	"github.com/homebot/protobuf/pkg/api"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"github.com/homebot/sigma/scheduler"
@@ -42,11 +41,9 @@ func NewServer(s scheduler.Scheduler, opts ...Option) (*Server, error) {
 
 // Create creates a new function
 func (s *Server) Create(ctx context.Context, in *sigmaV1.CreateFunctionRequest) (*sigmaV1.CreateFunctionResponse, error) {
-	target := urn.SigmaFunctionResource.BuildURN(s.scheduler.URN().Namespace(), s.scheduler.URN().AccountID(), "")
-
-	auth, err := s.isPermitted(ctx, "", target)
-	if err != nil {
-		return nil, err
+	auth, ok := policy.TokenFromContext(ctx)
+	if !ok {
+		return nil, errors.New("not authenticated")
 	}
 
 	if in == nil {
@@ -54,7 +51,7 @@ func (s *Server) Create(ctx context.Context, in *sigmaV1.CreateFunctionRequest) 
 	}
 
 	if auth != nil {
-		ctx = context.WithValue(ctx, "accountId", auth.URN.AccountID())
+		ctx = context.WithValue(ctx, "accountId", auth.Name)
 	}
 
 	spec := sigma.SpecFromProto(in.GetSpec())
@@ -68,30 +65,31 @@ func (s *Server) Create(ctx context.Context, in *sigmaV1.CreateFunctionRequest) 
 	}
 
 	return &sigmaV1.CreateFunctionResponse{
-		Urn: u.String(),
+		Name: u,
 	}, nil
 }
 
 // Destroy destroys the function and all associated resources identified by URN
-func (s *Server) Destroy(ctx context.Context, in *sigmaV1.DestroyRequest) (*api.Empty, error) {
+func (s *Server) Destroy(ctx context.Context, in *sigmaV1.DestroyRequest) (*empty.Empty, error) {
 	if in == nil {
 		return nil, errors.New("invalid request")
 	}
 
-	u := urn.URN(in.GetUrn())
-	if !u.Valid() {
-		return nil, errors.New("invalid URN")
-	}
-
-	if _, err := s.isPermitted(ctx, "destroy", u); err != nil {
-		return nil, err
-	}
+	u := in.GetName()
 
 	if err := s.scheduler.Destroy(ctx, u); err != nil {
 		return nil, err
 	}
 
-	return &api.Empty{}, nil
+	return &empty.Empty{}, nil
+}
+
+func (s *Server) VerificationKey(issuer string, alg string) (interface{}, error) {
+	return []byte("foobar"), nil
+}
+
+func (s *Server) IsResourceOwner(resource, identity string, permissions []string) (bool, error) {
+	return false, nil
 }
 
 // Dispatch dispatches an event to the given function and returns the result
@@ -103,14 +101,7 @@ func (s *Server) Dispatch(ctx context.Context, in *sigmaV1.DispatchRequest) (*si
 	// a unique ID for the execution
 	in.Event.Id = uuid.NewV4().String()
 
-	u := urn.URN(in.GetTarget())
-	if !u.Valid() {
-		return nil, errors.New("invalid URN")
-	}
-
-	if _, err := s.isPermitted(ctx, "dispatch", u); err != nil {
-		return nil, err
-	}
+	u := in.GetTarget()
 
 	if in.GetEvent() == nil || in.GetEvent().GetId() == "" {
 		return nil, errors.New("invalid request: event data invalid")
@@ -124,8 +115,8 @@ func (s *Server) Dispatch(ctx context.Context, in *sigmaV1.DispatchRequest) (*si
 	}
 
 	return &sigmaV1.DispatchResult{
-		Target: u.String(),
-		Node:   node.String(),
+		Target: u,
+		Node:   node,
 		Result: &sigmaV1.DispatchResult_Data{
 			Data: res,
 		},
@@ -134,14 +125,7 @@ func (s *Server) Dispatch(ctx context.Context, in *sigmaV1.DispatchRequest) (*si
 
 // Inspect inspects a function and returns details and statistics for the function
 func (s *Server) Inspect(ctx context.Context, in *sigmaV1.InspectRequest) (*sigmaV1.Function, error) {
-	u := urn.URN(in.GetUrn())
-	if !u.Valid() {
-		return nil, errors.New("invalid URN")
-	}
-
-	if _, err := s.isPermitted(ctx, "inspect", u); err != nil {
-		return nil, err
-	}
+	u := in.GetName()
 
 	f, err := s.scheduler.Inspect(ctx, u)
 	if err != nil {
@@ -152,7 +136,7 @@ func (s *Server) Inspect(ctx context.Context, in *sigmaV1.InspectRequest) (*sigm
 
 	for _, n := range f.Nodes {
 		nodes = append(nodes, &sigmaV1.Node{
-			Urn:        n.URN.String(),
+			Urn:        n.URN,
 			State:      n.State.ToProtobuf(),
 			Statistics: n.Stats.ToProtobuf(),
 		})
@@ -160,18 +144,13 @@ func (s *Server) Inspect(ctx context.Context, in *sigmaV1.InspectRequest) (*sigm
 
 	return &sigmaV1.Function{
 		Spec:  f.Spec.ToProtobuf(),
-		Urn:   f.URN.String(),
+		Urn:   f.URN,
 		Nodes: nodes,
 	}, nil
 }
 
 // List returns a list of functions managed by the scheduler
-func (s *Server) List(ctx context.Context, _ *api.Empty) (*sigmaV1.ListResult, error) {
-	auth, err := s.isPermitted(ctx, "list", "")
-	if err != nil {
-		return nil, err
-	}
-
+func (s *Server) List(ctx context.Context, _ *empty.Empty) (*sigmaV1.ListResult, error) {
 	functions, err := s.scheduler.Functions(ctx)
 
 	if err != nil {
@@ -181,22 +160,18 @@ func (s *Server) List(ctx context.Context, _ *api.Empty) (*sigmaV1.ListResult, e
 	var result []*sigmaV1.Function
 
 	for _, f := range functions {
-		if auth != nil && f.URN.AccountID() != auth.URN.AccountID() {
-			continue
-		}
-
 		var nodes []*sigmaV1.Node
 
 		for _, n := range f.Nodes {
 			nodes = append(nodes, &sigmaV1.Node{
-				Urn:        n.URN.String(),
+				Urn:        n.URN,
 				State:      n.State.ToProtobuf(),
 				Statistics: n.Stats.ToProtobuf(),
 			})
 		}
 
 		result = append(result, &sigmaV1.Function{
-			Urn:   f.URN.String(),
+			Urn:   f.URN,
 			Spec:  f.Spec.ToProtobuf(),
 			Nodes: nodes,
 		})
@@ -205,29 +180,6 @@ func (s *Server) List(ctx context.Context, _ *api.Empty) (*sigmaV1.ListResult, e
 	return &sigmaV1.ListResult{
 		Functions: result,
 	}, nil
-}
-
-func (s *Server) isPermitted(ctx context.Context, action string, target urn.URN) (*token.Token, error) {
-	if s.keyFn != nil {
-		t, err := token.FromMetadata(ctx, s.keyFn)
-		if err != nil {
-			return t, err
-		}
-
-		if t.HasGroup(urn.SigmaAdminGroup) {
-			return t, nil
-		}
-
-		if target != "" {
-			if target.AccountID() == t.URN.AccountID() {
-				return t, nil
-			}
-		}
-
-		return t, idam.ErrNotAuthenticated
-	}
-
-	return nil, nil
 }
 
 // compile time check

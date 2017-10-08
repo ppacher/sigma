@@ -7,7 +7,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/homebot/core/urn"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 )
@@ -38,7 +37,7 @@ type nodeChannel struct {
 
 type nodeConn struct {
 	secret string
-	URN    urn.URN
+	URN    string
 	spec   sigma.FunctionSpec
 
 	closed chan struct{}
@@ -48,7 +47,7 @@ type nodeConn struct {
 	registered bool
 }
 
-func newNodeConn(urn urn.URN, secret string, spec sigma.FunctionSpec) *nodeConn {
+func newNodeConn(urn string, secret string, spec sigma.FunctionSpec) *nodeConn {
 	return &nodeConn{
 		secret: secret,
 		URN:    urn,

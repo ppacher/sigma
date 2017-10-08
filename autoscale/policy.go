@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/homebot/core/urn"
 	"github.com/homebot/sigma/node"
 )
 
@@ -29,7 +28,7 @@ type Policy interface {
 	// positive impact on the number of instances. That is, if two policies are
 	// attached and one returns (Up, 1, true) while the other returns (Up, 20, false) (on a 10 node controller)
 	// the autoscaller will create 2 (0.20 * 10) new nodes
-	Check(metrics map[string]float64, states map[urn.URN]node.State) (direction ScaleDirection, amount int, abs bool)
+	Check(metrics map[string]float64, states map[string]node.State) (direction ScaleDirection, amount int, abs bool)
 }
 
 // PolicyFactory creates a new Policy and

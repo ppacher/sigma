@@ -11,7 +11,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/homebot/core/event"
-	"github.com/homebot/core/urn"
 	"github.com/homebot/sigma"
 	"github.com/homebot/sigma/function"
 	"github.com/homebot/sigma/node"
@@ -21,7 +20,7 @@ import (
 // NodeInstance describes a node instance
 type NodeInstance struct {
 	// URN is the URN of the node
-	URN urn.URN
+	URN string
 
 	// State is the current state of the node
 	State node.State
@@ -33,7 +32,7 @@ type NodeInstance struct {
 // FunctionRegistration describes a function registered at the scheduler
 type FunctionRegistration struct {
 	// URN holds the URN of the function resource
-	URN urn.URN
+	URN string
 
 	// Spec holds the function specification this controller is for
 	Spec sigma.FunctionSpec
@@ -44,23 +43,23 @@ type FunctionRegistration struct {
 
 // Scheduler creates, manages and destroys function controllers
 type Scheduler interface {
-	urn.Resource
+	URN() string
 
 	// Create creates a new function controller for the spec
-	Create(context.Context, sigma.FunctionSpec) (urn.URN, error)
+	Create(context.Context, sigma.FunctionSpec) (string, error)
 
 	// Destroy destroys the function controller for the URN
-	Destroy(context.Context, urn.URN) error
+	Destroy(context.Context, string) error
 
 	// Dispatch dispatches an event to a function and returns the result
-	Dispatch(context.Context, urn.URN, sigma.Event) (urn.URN, []byte, error)
+	Dispatch(context.Context, string, sigma.Event) (string, []byte, error)
 
 	// Functions returns a list of functions registered at the scheduler
 	Functions(context.Context) ([]FunctionRegistration, error)
 
 	// Inspec inspects a function and returns details and statistics about
 	// the function controller
-	Inspect(context.Context, urn.URN) (FunctionRegistration, error)
+	Inspect(context.Context, string) (FunctionRegistration, error)
 }
 
 type scheduler struct {
@@ -72,8 +71,8 @@ type scheduler struct {
 	controllers map[string]function.Controller
 }
 
-func (s *scheduler) URN() urn.URN {
-	return urn.SigmaInstanceResource.BuildURN(s.namespace, "", s.id)
+func (s *scheduler) URN() string {
+	return s.id
 }
 
 // NewScheduler creates a new scheduler using the provided deployer
@@ -95,7 +94,7 @@ func NewScheduler(d node.Deployer, opts ...Option) (Scheduler, error) {
 }
 
 // Inspect inspects a function and returns details about the controller
-func (s *scheduler) Inspect(ctx context.Context, u urn.URN) (FunctionRegistration, error) {
+func (s *scheduler) Inspect(ctx context.Context, u string) (FunctionRegistration, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -122,8 +121,8 @@ func (s *scheduler) Functions(ctx context.Context) ([]FunctionRegistration, erro
 }
 
 // Create registeres a new function spec at the scheduler
-func (s *scheduler) Create(ctx context.Context, spec sigma.FunctionSpec) (urn.URN, error) {
-	u := urn.URN("")
+func (s *scheduler) Create(ctx context.Context, spec sigma.FunctionSpec) (string, error) {
+	u := ""
 
 	accountID, ok := ctx.Value("accountId").(string)
 	if !ok {
@@ -147,12 +146,12 @@ func (s *scheduler) Create(ctx context.Context, spec sigma.FunctionSpec) (urn.UR
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, ok = s.controllers[ctrl.URN().String()]
+	_, ok = s.controllers[ctrl.URN()]
 	if ok {
 		return ctrl.URN(), errors.New("function already created")
 	}
 
-	s.controllers[ctrl.URN().String()] = ctrl
+	s.controllers[ctrl.URN()] = ctrl
 	if err := ctrl.Start(); err != nil {
 		return u, err
 	}
@@ -161,10 +160,10 @@ func (s *scheduler) Create(ctx context.Context, spec sigma.FunctionSpec) (urn.UR
 }
 
 // Destroy destroys the function controller and all nodes
-func (s *scheduler) Destroy(ctx context.Context, u urn.URN) error {
+func (s *scheduler) Destroy(ctx context.Context, u string) error {
 	s.mu.Lock()
-	ctrl, ok := s.controllers[u.String()]
-	delete(s.controllers, u.String())
+	ctrl, ok := s.controllers[u]
+	delete(s.controllers, u)
 	s.mu.Unlock()
 
 	if !ok {
@@ -184,24 +183,24 @@ func (s *scheduler) Destroy(ctx context.Context, u urn.URN) error {
 
 // Dispatch dispatches an event to the function controller and returns the result
 // of the function
-func (s *scheduler) Dispatch(ctx context.Context, u urn.URN, event sigma.Event) (urn.URN, []byte, error) {
+func (s *scheduler) Dispatch(ctx context.Context, u string, event sigma.Event) (string, []byte, error) {
 	s.mu.Lock()
-	ctrl, ok := s.controllers[u.String()]
+	ctrl, ok := s.controllers[u]
 	s.mu.Unlock()
 
 	if !ok {
-		return urn.URN(""), nil, errors.New("unknown function")
+		return "", nil, errors.New("unknown function")
 	}
 
 	return ctrl.Dispatch(event)
 }
 
-func (s *scheduler) inspect(ctx context.Context, u urn.URN) (FunctionRegistration, error) {
+func (s *scheduler) inspect(ctx context.Context, u string) (FunctionRegistration, error) {
 	reg := FunctionRegistration{
 		URN: u,
 	}
 
-	ctrl, ok := s.controllers[u.String()]
+	ctrl, ok := s.controllers[u]
 	if !ok {
 		return reg, errors.New("unknown function")
 	}

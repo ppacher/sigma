@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/golang/glog"
-	"github.com/homebot/core/urn"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
 	"github.com/homebot/sigma"
 	"golang.org/x/net/context"
@@ -18,9 +17,9 @@ import (
 type NodeServer interface {
 	sigmaV1.NodeHandlerServer
 
-	Prepare(urn.URN, string, sigma.FunctionSpec) (Conn, error)
+	Prepare(string, string, sigma.FunctionSpec) (Conn, error)
 
-	Remove(urn.URN) error
+	Remove(string) error
 }
 
 // nodeServer provides a `protobuf/api/sigma` node handler server
@@ -136,17 +135,17 @@ func (h *nodeServer) Subscribe(stream sigmaV1.NodeHandler_SubscribeServer) error
 	}
 }
 
-func (h *nodeServer) Prepare(urn urn.URN, secret string, spec sigma.FunctionSpec) (Conn, error) {
+func (h *nodeServer) Prepare(urn string, secret string, spec sigma.FunctionSpec) (Conn, error) {
 	node := newNodeConn(urn, secret, spec)
 
 	return node, h.addPendingConn(node)
 }
 
-func (h *nodeServer) Remove(urn urn.URN) error {
+func (h *nodeServer) Remove(urn string) error {
 	h.rw.Lock()
-	conn, ok := h.conns[urn.String()]
+	conn, ok := h.conns[urn]
 	if ok {
-		delete(h.conns, urn.String())
+		delete(h.conns, urn)
 	}
 	h.rw.Unlock()
 
@@ -161,22 +160,22 @@ func (h *nodeServer) addPendingConn(conn *nodeConn) error {
 	h.rw.Lock()
 	defer h.rw.Unlock()
 
-	if e, ok := h.conns[conn.URN.String()]; ok {
+	if e, ok := h.conns[conn.URN]; ok {
 		if e.secret == conn.secret {
 			return errors.New("URN collision with different secrets")
 		}
 		return errors.New("connection already added")
 	}
 
-	h.conns[conn.URN.String()] = conn
+	h.conns[conn.URN] = conn
 	return nil
 }
 
-func (h *nodeServer) getConnection(urn urn.URN, secret string) (*nodeConn, error) {
+func (h *nodeServer) getConnection(urn string, secret string) (*nodeConn, error) {
 	h.rw.RLock()
 	defer h.rw.RUnlock()
 
-	c, ok := h.conns[urn.String()]
+	c, ok := h.conns[urn]
 	if !ok {
 		return nil, errors.New("unknown URN")
 	}
@@ -188,18 +187,15 @@ func (h *nodeServer) getConnection(urn urn.URN, secret string) (*nodeConn, error
 	return c, nil
 }
 
-func getAuth(ctx context.Context) (urn.URN, string, error) {
+func getAuth(ctx context.Context) (string, string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 
 	urnList, ok := md["node-urn"]
 	if len(urnList) != 1 || !ok {
-		return urn.URN(""), "", errors.New("invalid URN header")
+		return "", "", errors.New("invalid URN header")
 	}
 
-	urn := urn.URN(urnList[0])
-	if !urn.Valid() {
-		return urn, "", errors.New("invalid URN")
-	}
+	urn := urnList[0]
 
 	secretList, ok := md["node-secret"]
 	if len(secretList) != 1 || !ok {

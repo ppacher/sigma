@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/homebot/core/log"
 	"github.com/homebot/sigma/launcher"
 )
 
@@ -22,15 +21,11 @@ type Instance struct {
 	closed  chan struct{}
 	cmd     *exec.Cmd
 	exitErr error
-
-	l log.Logger
 }
 
 func (i *Instance) watch() {
 	err := i.cmd.Wait()
 	i.exitErr = err
-
-	i.l.Errorf("process exited")
 
 	close(i.closed)
 }
@@ -68,7 +63,6 @@ type Launcher struct {
 
 // Create creates a new instance
 func (l *Launcher) Create(ctx context.Context, typ string, c launcher.Config) (launcher.Instance, error) {
-	log := log.WithURN(c.URN)
 
 	typCfg, ok := l.nodeTypes[typ]
 	if !ok {
@@ -99,7 +93,6 @@ func (l *Launcher) Create(ctx context.Context, typ string, c launcher.Config) (l
 	instance := &Instance{
 		cmd:    cmd,
 		closed: make(chan struct{}),
-		l:      log,
 	}
 
 	if err := cmd.Start(); err != nil {
