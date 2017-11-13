@@ -24,22 +24,6 @@ func WithEventDispatcher(disp event.Dispatcher) ControllerOption {
 	}
 }
 
-// WithNamespace sets the namespace the function ID belongs to
-func WithNamespace(ns string) ControllerOption {
-	return func(c *controller) error {
-		//c.ctx.Namespace = ns
-		return nil
-	}
-}
-
-// WithAccountID sets the account ID the function controller belongs to
-func WithAccountID(id string) ControllerOption {
-	return func(c *controller) error {
-		//c.ctx.AccountID = id
-		return nil
-	}
-}
-
 // WithControlLoopInterval configures the interval for the function controllers
 // control loop
 func WithControlLoopInterval(duration time.Duration) ControllerOption {

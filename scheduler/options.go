@@ -1,5 +1,10 @@
 package scheduler
 
+import (
+	"github.com/homebot/core/resource"
+	"github.com/homebot/insight/logger"
+)
+
 // Option is a Scheduler option
 type Option func(s *scheduler) error
 
@@ -12,9 +17,16 @@ func WithNamespace(n string) Option {
 }
 
 // WithID sets the schedulers instance ID
-func WithID(id string) Option {
+func WithID(id resource.Name) Option {
 	return func(s *scheduler) error {
 		s.id = id
+		return nil
+	}
+}
+
+func WithLogger(l logger.Logger) Option {
+	return func(s *scheduler) error {
+		s.log = l
 		return nil
 	}
 }

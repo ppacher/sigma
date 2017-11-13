@@ -2,12 +2,15 @@ package server
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	uuid "github.com/satori/go.uuid"
 
 	"golang.org/x/net/context"
 
+	"github.com/homebot/core/resource"
+	"github.com/homebot/idam"
 	"github.com/homebot/idam/policy"
 	"github.com/homebot/idam/token"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
@@ -58,6 +61,13 @@ func (s *Server) Create(ctx context.Context, in *sigmaV1.CreateFunctionRequest) 
 	if spec.ID == "" || spec.Type == "" {
 		return nil, errors.New("invalid function spec")
 	}
+
+	name, err := idam.ResourceName(auth.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	spec.ID = fmt.Sprintf("%s/functions/%s", name, spec.ID)
 
 	u, err := s.scheduler.Create(ctx, spec)
 	if err != nil {
@@ -127,7 +137,7 @@ func (s *Server) Dispatch(ctx context.Context, in *sigmaV1.DispatchRequest) (*si
 func (s *Server) Inspect(ctx context.Context, in *sigmaV1.InspectRequest) (*sigmaV1.Function, error) {
 	u := in.GetName()
 
-	f, err := s.scheduler.Inspect(ctx, u)
+	f, err := s.scheduler.Inspect(ctx, resource.Name(u))
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +146,7 @@ func (s *Server) Inspect(ctx context.Context, in *sigmaV1.InspectRequest) (*sigm
 
 	for _, n := range f.Nodes {
 		nodes = append(nodes, &sigmaV1.Node{
-			Urn:        n.URN,
+			Urn:        n.Name.String(),
 			State:      n.State.ToProtobuf(),
 			Statistics: n.Stats.ToProtobuf(),
 		})
@@ -144,7 +154,7 @@ func (s *Server) Inspect(ctx context.Context, in *sigmaV1.InspectRequest) (*sigm
 
 	return &sigmaV1.Function{
 		Spec:  f.Spec.ToProtobuf(),
-		Urn:   f.URN,
+		Urn:   f.Name.String(),
 		Nodes: nodes,
 	}, nil
 }
@@ -164,14 +174,14 @@ func (s *Server) List(ctx context.Context, _ *empty.Empty) (*sigmaV1.ListResult,
 
 		for _, n := range f.Nodes {
 			nodes = append(nodes, &sigmaV1.Node{
-				Urn:        n.URN,
+				Urn:        n.Name.String(),
 				State:      n.State.ToProtobuf(),
 				Statistics: n.Stats.ToProtobuf(),
 			})
 		}
 
 		result = append(result, &sigmaV1.Function{
-			Urn:   f.URN,
+			Urn:   f.Name.String(),
 			Spec:  f.Spec.ToProtobuf(),
 			Nodes: nodes,
 		})

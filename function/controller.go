@@ -11,6 +11,7 @@ import (
 	"github.com/satori/go.uuid"
 
 	"github.com/homebot/core/event"
+	"github.com/homebot/core/resource"
 	"github.com/homebot/core/utils"
 	"github.com/homebot/insight/logger"
 	sigmaV1 "github.com/homebot/protobuf/pkg/api/sigma/v1"
@@ -56,8 +57,7 @@ type ControlLoopHook func(c Controller)
 // Controller handles all node controller for a given
 // function spec.
 type Controller interface {
-	//urn.Resource
-	URN() string
+	resource.Resource
 
 	// Start starts the function controller's control loop
 	Start() error
@@ -100,8 +100,6 @@ type Controller interface {
 type controller struct {
 	spec sigma.FunctionSpec
 
-	//ctx urn.ResourceContext
-
 	event          event.Dispatcher
 	deployer       node.Deployer
 	triggerBuilder trigger.Builder
@@ -126,8 +124,8 @@ type controller struct {
 	hooks    []ControlLoopHook
 }
 
-func (ctrl *controller) URN() string {
-	return ctrl.spec.ID
+func (ctrl *controller) Name() resource.Name {
+	return resource.Name(ctrl.spec.ID)
 }
 
 // Start starts the function controllers' control loop
@@ -310,7 +308,7 @@ func (ctrl *controller) Dispatch(event sigma.Event) (selectedNode string, result
 		if err != nil {
 			n := selectedNode
 			if n == "" {
-				n = ctrl.URN()
+				n = ctrl.Name().String()
 			}
 			//ctrl.dispatchEvent(urn.SigmaEventFunctionFailed, n.Resource(), []byte(err.Error()))
 		} else {
